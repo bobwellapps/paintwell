@@ -1,0 +1,125 @@
+name: paintwell
+title: Paintwell
+version: '1.2'
+summary: 'Easy, powerful image editor: layers, Content-Aware Fill and 50+ effects'
+description: |
+  Paintwell is a photo editor and paint program for Linux that's easy to pick up, with a lot more under the bonnet than a basic image editor. Smart photo fixes, real layers, text you can always re-edit, a full set of adjustments and 50+ effects, all in a clean, familiar layout.
+
+  SMART PHOTO FIXES
+  - Content-Aware Fill: select something you don't want and Paintwell fills the gap using the picture around it.
+  - Remove tool: brush over small blemishes, spots, wires or unwanted objects to blend them away.
+  - Red Eye: one click, natural-looking results.
+  - Clone Stamp, Dodge, Burn, Sponge, Blur, Sharpen and Smudge for touch-ups by hand.
+
+  Results depend on the picture. The smart fixes work best on smaller areas with simple, even surroundings such as sky, grass, sand or walls. Large or detailed areas may need finishing with the Clone Stamp.
+
+  PRO-STYLE SELECTIONS
+  - Magic Wand that updates live as you move the Tolerance slider.
+  - Magnetic Lasso that snaps to edges as you trace around an object.
+  - Rectangle, ellipse and freehand lasso, plus add to and subtract from any selection.
+
+  LAYERS AND TEXT
+  - Layers with blend modes and opacity, saved in the open, layered OpenRaster (.ora) format.
+  - Text on its own layer that you can re-edit at any time: horizontal, vertical, on an arc or a wave, with rotation, outlines, drop shadows and letter and line spacing.
+
+  ADJUSTMENTS AND 50+ EFFECTS
+  - Adjustments: Levels, Curves, Hue / Saturation, Brightness / Contrast, Auto-Level, Black and White, Sepia, Posterise and Invert.
+  - Artistic: Oil Painting, Watercolour, Pencil Sketch, Ink Sketch, Cartoon and Halftone.
+  - Photo: Glow, Old Photo, Soften Portrait, Sharpen and Vignette.
+  - Frames and borders: picture frames (moulded, wood, gold, silver and more, with a mount), drop shadows, rounded corners, and soft or rough edges.
+  - Render: realistic clouds and skies, Lens Flare, Lighting Effects, Starfield with nebula, Rain and Snow, Sunburst, Julia and Mandelbrot fractals, Plasma, and wood, marble and granite textures.
+  - Blurs, Distort, Noise and Stylise: Motion, Radial and Zoom Blur, Bulge, Twist, Frosted Glass, Pixelate, Emboss, Edge Detect and more.
+
+  MADE FOR GETTING WORK DONE
+  - Several images open at once in tabs.
+  - Unlimited undo, with a History panel to jump back to any step.
+  - Navigator, rulers and guides, and a pixel grid.
+  - Dockable Tools, Colours, History, Layers and Navigator panels you can arrange how you like.
+  - Print with a preview and size options, and scan straight into Paintwell, including from network printer-scanners without extra drivers.
+  - Opens and saves PNG, JPEG and other common formats, plus layered OpenRaster.
+
+  Free and open source, licensed under GPL-3.0-or-later.
+
+license: GPL-3.0-or-later
+website: https://github.com/bobwellapps/paintwell
+source-code: https://github.com/bobwellapps/paintwell
+issues: https://github.com/bobwellapps/paintwell/issues
+
+base: core24
+grade: stable
+confinement: strict
+icon: snap/gui/paintwell.png
+
+platforms:
+  amd64:
+
+apps:
+  paintwell:
+    # -E: ignore the PYTHONPATH the gnome extension's launcher sets, so Paintwell only
+    # uses its own PySide6 and NumPy
+    command: bin/python3 -E -m paintwell
+    # the gnome extension supplies the desktop basics (fonts, graphics drivers, themes,
+    # launcher); Paintwell brings its own Qt inside PySide6, so there is no clash
+    extensions: [gnome]
+    plugs:
+      - home              # open and save pictures in your home folder
+      - removable-media   # ... and on USB sticks and other drives
+      - cups              # printing
+      - network           # network scanners
+      - avahi-observe     # finding network scanners
+      - network-bind      # receiving replies from network scanners
+      - raw-usb           # USB scanners (connect by hand: see SNAP-RELEASE.md)
+    environment:
+      QT_QPA_PLATFORM: "wayland;xcb"
+      # libraries staged into the snap (CUPS for printing, SANE and its scanner drivers);
+      # scanimage and Qt's printer plugin look for them here
+      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/usr/lib/x86_64-linux-gnu:$SNAP/usr/lib/x86_64-linux-gnu/sane
+      # scanning: SANE's settings come from inside the snap
+      SANE_CONFIG_DIR: $SNAP/etc/sane.d
+      MIBDIRS: $SNAP/usr/share/snmp/mibs
+
+parts:
+  paintwell:
+    plugin: python
+    source: .
+    # the gnome extension puts its own Python packages (including an old pip) on
+    # PYTHONPATH for every part; clear it so pip installs Paintwell into its own venv
+    build-environment:
+      - PATH: ${CRAFT_PART_INSTALL}/bin:${PATH}
+      - PYTHONPATH: ""
+    stage-packages:
+      # what Qt's X11 / Wayland window support needs
+      - libxkbcommon-x11-0
+      - libxcb-cursor0
+      - libxcb-icccm4
+      - libxcb-image0
+      - libxcb-keysyms1
+      - libxcb-randr0
+      - libxcb-render-util0
+      - libxcb-shape0
+      - libxcb-xinerama0
+      - libxcb-xkb1
+      - libxcb-xfixes0
+      - libxcb-sync1
+      - libxcb-shm0
+      - libxcb-util1
+      - libx11-xcb1
+      - libegl1
+      - libopengl0
+      # printing and scanning
+      - libcups2t64
+      - libsane1
+      - libsane-common
+      - sane-utils
+      - sane-airscan      # driverless network scanners (most modern HP, Canon, Epson, Brother)
+      - libusb-1.0-0
+      - libsnmp-base      # network-description files some network scanner drivers read
+    prime:
+      - -usr/share/doc/*/changelog*
+      - -usr/share/man
+
+  licences:
+    plugin: dump
+    source: packaging/licenses
+    organize:
+      '*': usr/share/doc/paintwell/
