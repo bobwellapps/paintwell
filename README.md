@@ -9,9 +9,9 @@ adjustments and 50+ effects, all in a clean, familiar layout.
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/paintwell)
 
 <p align="center">
-<img width="1086" height="618" alt="example1" src="https://github.com/user-attachments/assets/e1e81694-a212-4fd8-b2bb-249c54c0443b" />
-  <img width="2050" height="1166" alt="example3" src="https://github.com/user-attachments/assets/48e4ccc3-8403-4e9f-9bae-7a944e090e79" />
-    <img width="2050" height="1166" alt="example4" src="https://github.com/user-attachments/assets/bfaef104-5cc4-4258-a400-644aaea49f3c" />
+<img width="1086" height="618" alt="example1" src="https://github.com/user-attachments/assets/e1e81694-a212-4fd8-b2bb-249c54c0443b" width="32%"/>
+  <img width="2050" height="1166" alt="example3" src="https://github.com/user-attachments/assets/48e4ccc3-8403-4e9f-9bae-7a944e090e79" width="32%"/>
+    <img width="2050" height="1166" alt="example4" src="https://github.com/user-attachments/assets/bfaef104-5cc4-4258-a400-644aaea49f3c" width="32%"/>
 </p>
 
 ## Install
