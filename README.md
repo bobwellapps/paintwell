@@ -89,10 +89,6 @@ pip install PySide6-Essentials numpy
 python3 -m paintwell
 ```
 
-## Building the snap
-
-Everything is in `snap/`, and `snap-tools/` has scripts for setup, building and publishing.
-See [SNAP-RELEASE.md](SNAP-RELEASE.md).
 
 ## Reporting problems
 
