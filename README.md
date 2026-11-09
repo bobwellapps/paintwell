@@ -1,4 +1,5 @@
-<p align="center"><img src="docs/images/banner.png" alt="Paintwell" width="100%"></p>
+
+<p align="center"><img width="1920" height="640" alt="paintwell-banner-1920x640" src="https://github.com/user-attachments/assets/77c63eec-a6e2-4ed7-8a53-49640e924155" /></p>
 
 # Paintwell
 
