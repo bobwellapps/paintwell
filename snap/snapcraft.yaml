@@ -1,6 +1,6 @@
 name: paintwell
 title: Paintwell
-version: '1.2'
+version: '1.3'
 summary: 'Easy, powerful image editor: layers, Content-Aware Fill and 50+ effects'
 description: |
   Paintwell is a photo editor and paint program for Linux that's easy to pick up, with a lot more under the bonnet than a basic image editor. Smart photo fixes, real layers, text you can always re-edit, a full set of adjustments and 50+ effects, all in a clean, familiar layout.
@@ -46,6 +46,8 @@ source-code: https://github.com/bobwellapps/paintwell
 issues: https://github.com/bobwellapps/paintwell/issues
 
 base: core24
+# lzo unpacks much faster than the default xz, so Paintwell opens quicker (slightly bigger download)
+compression: lzo
 grade: stable
 confinement: strict
 icon: snap/gui/paintwell.png

@@ -1,8 +1,8 @@
-"""One Paintwell at a time for opening files.
+"""Single instance for opening files.
 
-When a picture is opened from the file manager ("Open with Paintwell") while Paintwell is
-already running, the new launch hands the picture to the running Paintwell (which opens it
-in a new tab and comes to the front) and then quits, instead of starting a second Paintwell."""
+If Paintwell is already running, a new launch with files passes them to it over a local
+socket and exits.
+"""
 import json
 import os
 import tempfile
@@ -17,7 +17,7 @@ def socket_path():
 
 
 def send_to_running(files):
-    """Give these files to an already running Paintwell.  True if one took them."""
+    """Give these files to an already running Paintwell. True if one took them."""
     s = QLocalSocket()
     s.connectToServer(socket_path())
     if not s.waitForConnected(700):

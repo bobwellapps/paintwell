@@ -1,12 +1,10 @@
 """Dialogs: new image, resize, canvas size, layer properties, effect parameters, curves, levels."""
-import math
-import numpy as np
-from PySide6.QtCore import Qt, QTimer, QPointF, QRectF, Signal, QSize
-from PySide6.QtGui import QPainter, QColor, QPen, QPainterPath, QBrush, QIcon, QImage
+from PySide6.QtCore import Qt, QTimer, QPointF, QRectF, Signal
+from PySide6.QtGui import QPainter, QColor, QPen, QPainterPath
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QLabel,
                                QSpinBox, QDoubleSpinBox, QSlider, QCheckBox, QComboBox, QDialogButtonBox,
                                QPushButton, QRadioButton, QButtonGroup, QGroupBox, QLineEdit, QWidget,
-                               QToolButton, QSizePolicy, QFileDialog, QStackedWidget)
+                               QToolButton, QSizePolicy)
 
 from .document import BLEND_MODES
 
@@ -66,7 +64,7 @@ class SliderSpin(QWidget):
         self.valueChanged.emit(self.value())
 
 
-# ======================================================================= effect dialog
+# --- Effect dialog ---
 class EffectDialog(QDialog):
     """Generic parameter dialog; calls preview(params) live."""
 
@@ -104,6 +102,7 @@ class EffectDialog(QDialog):
             elif kind == "seed":
                 w = QPushButton(f"Reseed ({val})")
                 w.seed = val
+
                 def reseed(_=False, b=w):
                     import random
                     b.seed = random.randint(0, 99999)
@@ -162,7 +161,7 @@ class EffectDialog(QDialog):
             QApplication.restoreOverrideCursor()
 
 
-# ======================================================================= curves
+# --- Curves ---
 class CurveWidget(QWidget):
     changed = Signal()
 
@@ -411,7 +410,7 @@ class LevelsDialog(QDialog):
         self.preview_fn(self.values())
 
 
-# ======================================================================= image dialogs
+# --- Image dialogs ---
 class NewImageDialog(QDialog):
     def __init__(self, parent, w, h):
         super().__init__(parent)
@@ -580,9 +579,9 @@ class LayerPropertiesDialog(QDialog):
 
 
 def split_rects(w, h, mode, a, b, keep_edges=True):
-    """Pieces as (row, col, x, y, width, height).
-    mode 'grid': a columns x b rows, sizes shared out evenly.
-    mode 'size': pieces a px wide and b px high; leftover strips kept if keep_edges."""
+    """Pieces as (row, col, x, y, w, h). 'grid': a x b pieces of equal size.
+    'size': pieces a x b px, plus the leftover strips if keep_edges.
+    """
     if mode == "grid":
         cols, rows = max(1, min(a, w)), max(1, min(b, h))
         xs = [round(i * w / cols) for i in range(cols + 1)]

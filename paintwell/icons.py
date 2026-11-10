@@ -1,9 +1,8 @@
-"""Hand-drawn vector icons, painted at runtime so the app ships no image assets.
+"""Vector icons drawn with QPainter at runtime, so there are no image files to ship.
 
-Lines are drawn fine and crisp: every stroke width below is thinned by _thin() (detail
-lines to under a pixel at toolbar size, bold strokes kept a little heavier), with a
-slightly deeper outline colour so the thinner lines keep their contrast.  Colours are
-softened a little after drawing (_tone_down) so the toolbar looks calm."""
+Stroke widths go through _thin() so detail lines stay crisp at toolbar size, and
+_tone_down() mutes the colours slightly after drawing.
+"""
 import math
 from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import (QIcon, QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath,
@@ -22,13 +21,97 @@ PAPER = QColor(250, 250, 252)
 GREY = QColor(150, 150, 158)
 
 
+_dark = False
+
+
 def set_dark(dark):
     """Use light outlines on dark themes. Call before any icon is created."""
-    global OUT, PAPER
+    global OUT, PAPER, _dark
+    _dark = bool(dark)
     OUT = QColor(218, 218, 225) if dark else QColor(52, 52, 60)
     # white "paper" fills would glare (and hide the light outlines) on a dark theme
     PAPER = QColor(74, 74, 82) if dark else QColor(250, 250, 252)
     _cache.clear()
+    _disk.clear()
+    _disk_state["loaded"] = False
+
+
+# --- Icon cache on disk ---
+# Drawing every icon at four sizes takes a noticeable part of startup, so the finished
+# pixels are saved once and reloaded on later starts. The file name includes a hash of the
+# drawing code, the theme and the logo, so any change simply produces a new cache.
+_disk = {}
+_disk_state = {"loaded": False, "dirty": False}
+
+
+def _cache_path():
+    import hashlib
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    h = hashlib.md5()
+    for name in ("icons.py", "icons_menu.py", os.path.join("resources", "paintwell_icon.png")):
+        try:
+            with open(os.path.join(here, name), "rb") as fh:
+                h.update(fh.read())
+        except OSError:
+            h.update(name.encode())
+    h.update(b"dark" if _dark else b"light")
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    return os.path.join(base, "paintwell", f"icons-{h.hexdigest()[:12]}.bin")
+
+
+def _load_disk():
+    _disk_state["loaded"] = True
+    import pickle
+    import zlib
+    try:
+        with open(_cache_path(), "rb") as fh:
+            data = pickle.loads(zlib.decompress(fh.read()))
+        if isinstance(data, dict):
+            _disk.update(data)
+    except Exception:
+        pass                                    # no cache yet, or an unreadable one
+
+
+def save_cache():
+    """Write newly drawn icons to the disk cache (called once the window is up)."""
+    if not _disk_state["dirty"]:
+        return
+    import os
+    import pickle
+    import zlib
+    path = _cache_path()
+    try:
+        folder = os.path.dirname(path)
+        os.makedirs(folder, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(zlib.compress(pickle.dumps(dict(_disk), protocol=pickle.HIGHEST_PROTOCOL), 1))
+        os.replace(tmp, path)
+        _disk_state["dirty"] = False
+        # keep the newest few (light and dark themes), remove ones left by older versions
+        old = sorted((os.path.join(folder, n) for n in os.listdir(folder)
+                      if n.startswith("icons-") and n.endswith(".bin")), key=os.path.getmtime)
+        for p in old[:-4]:
+            os.remove(p)
+    except OSError:
+        pass
+
+
+def _to_disk(key, pm):
+    img = pm.toImage()
+    _disk[key] = (img.width(), img.height(), int(img.format().value), img.bytesPerLine(),
+                  bytes(img.constBits()), pm.devicePixelRatio())
+    _disk_state["dirty"] = True
+
+
+def _from_disk(key):
+    from PySide6.QtGui import QImage
+    w, h, fmt, bpl, data, dpr = _disk[key]
+    img = QImage(data, w, h, bpl, QImage.Format(fmt))
+    pm = QPixmap.fromImage(img.copy())
+    pm.setDevicePixelRatio(dpr)
+    return pm
 
 
 def _thin(w):
@@ -171,6 +254,7 @@ def _draw(name, p):
     elif name == "pan":
         # open hand: palm, four slim fingers and a thumb angled up from the side of the palm
         from PySide6.QtGui import QTransform
+
         def rr(x, y, w, h, r):
             q = QPainterPath(); q.addRoundedRect(QRectF(x, y, w, h), r, r); return q
         hand = rr(7.2, 10.5, 10.6, 10.5, 4)
@@ -580,10 +664,9 @@ def _draw(name, p):
 
 
 def _app_icon(p):
-    """The Paintwell logo on a 256 x 256 grid: a wishing well with a shingled roof and a
-    winding crank; a paintbrush hangs from the rope, dripping purple paint into the well,
-    and paint runs over the rim and down the stones; all inside a painted purple ring.
-    Fine detail is left out when the icon is drawn small, so it stays clear."""
+    """Fallback logo drawn on a 256 x 256 grid, used if resources/paintwell_icon.png is missing.
+    Fine detail is skipped at small sizes.
+    """
     import random
     C = QColor
     P = QPointF
@@ -783,6 +866,7 @@ def _app_icon(p):
         for k in range(cols + 1):
             t0 = (k - (0.5 if ri else 0)) / cols
             t1 = t0 + 1 / cols
+
             def xat(t, y):
                 half = 58 + 28 * (y - 30) / 34
                 return cx - half + 2 * half * t
@@ -804,6 +888,22 @@ def _app_icon(p):
 
 def pixmap(name, size=24):
     key = (name, size)
+    if key in _cache:
+        return _cache[key]
+    if not _disk_state["loaded"]:
+        _load_disk()
+    if key in _disk:
+        try:
+            _cache[key] = _from_disk(key)
+            return _cache[key]
+        except Exception:
+            _disk.pop(key, None)
+    _draw_pixmap(name, size, key)
+    _to_disk(key, _cache[key])
+    return _cache[key]
+
+
+def _draw_pixmap(name, size, key):
     if key not in _cache and name == "app" and _logo():
         pm = QPixmap.fromImage(_logo_scaled(size * 2))
         pm.setDevicePixelRatio(2.0)
@@ -822,7 +922,6 @@ def pixmap(name, size=24):
             pm = _tone_down(pm)
         pm.setDevicePixelRatio(dpr)
         _cache[key] = pm
-    return _cache[key]
 
 
 TONE = 0.74    # how much colour icons keep (1 = full strength); softens the accents

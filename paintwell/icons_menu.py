@@ -1,6 +1,6 @@
-"""Icons for the menu entries (File, Edit, View, Adjustments, Effects...), drawn in the same
-24x24 style as the tool icons.  Most effect icons are a small landscape picture shown with
-that effect applied, so they read as a family."""
+"""Menu icons, drawn in the same 24 x 24 style as the tool icons. Most effect icons show a
+small landscape with that effect applied.
+"""
 import math, random
 from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import (QPainterPath, QColor, QBrush, QLinearGradient, QRadialGradient,
@@ -151,7 +151,7 @@ def _blob(p, cx, cy, rx, ry, seed=1, n=9, jitter=0.25):
 def draw(name, p):
     """Draw menu icon `name`; returns False if the name is unknown."""
     O = I.OUT
-    # ------------------------------------------------------------------ File
+    # --- File ---
     if name == "recent":
         I._draw("open", p)
         p.setPen(I._pen(O, 1.3)); p.setBrush(I.PAPER); p.drawEllipse(P(17.5, 17.5), 5.2, 5.2)
@@ -171,7 +171,7 @@ def draw(name, p):
         p.setBrush(O); p.drawEllipse(P(11.5, 12.5), 0.9, 0.9)
         p.setPen(I._pen(I.RED, 2.1)); p.drawLine(P(12, 12), P(21, 12))
         p.drawPolyline(QPolygonF([P(17.5, 8.5), P(21, 12), P(17.5, 15.5)]))
-    # ------------------------------------------------------------------ Edit
+    # --- Edit ---
     elif name == "copy_merged":
         _diamond(p, 9.5, 11, 7, 3.5, QColor(150, 190, 240)); _diamond(p, 9.5, 7, 7, 3.5, I.PAPER)
         I._page(p, 11, 10, 10, 12, QColor(225, 238, 252))
@@ -194,7 +194,7 @@ def draw(name, p):
     elif name == "invert_selection":
         p.setPen(I._pen(O, 1.1)); p.setBrush(QColor(40, 120, 215, 110)); p.drawRect(QRectF(3, 3, 18, 18))
         p.setBrush(I.PAPER); p.setPen(I._dash(O, 1.4)); p.drawRect(QRectF(8, 8, 8, 8))
-    # ------------------------------------------------------------------ View
+    # --- View ---
     elif name in ("zoom_in", "zoom_out"):
         _magnifier(p, 10, 10, 6.5, "+" if name == "zoom_in" else "-")
     elif name == "zoom_window":
@@ -247,7 +247,7 @@ def draw(name, p):
         cut = QPainterPath(); cut.addEllipse(P(16.5, 8.5), 7, 7)
         p.setPen(I._pen(QColor(60, 70, 110), 1.2)); p.setBrush(QColor(110, 125, 180)); p.drawPath(moon.subtracted(cut))
         p.setPen(Qt.NoPen); p.setBrush(SUN); p.drawEllipse(P(18.5, 15.5), 1.1, 1.1); p.drawEllipse(P(15.5, 19.5), 0.8, 0.8)
-    # ------------------------------------------------------------------ Layers / Window / Help
+    # --- Layers / Window / Help ---
     elif name == "import_layer":
         _diamond(p, 11, 15.5, 9, 4.5)
         p.setPen(I._pen(I.GREEN, 2.2)); p.drawLine(P(18, 2), P(18, 9))
@@ -272,7 +272,7 @@ def draw(name, p):
             for i in range(n):
                 p.drawRoundedRect(QRectF(x0 + i * 3, y, 2.2, 2.2), 0.4, 0.4)
         p.drawRoundedRect(QRectF(6.5, 14.8, 11, 2.2), 0.4, 0.4)
-    # ------------------------------------------------------------------ Adjustments
+    # --- Adjustments ---
     elif name == "adj_auto_level":
         p.setPen(I._pen(O, 1.1)); p.setBrush(I.PAPER); p.drawRect(QRectF(3, 6, 18, 15))
         _histogram(p, QRectF(4.5, 8, 15, 12), I.BLUE)
@@ -327,7 +327,7 @@ def draw(name, p):
         for i, c in enumerate(cols):
             p.setBrush(c); p.drawRect(QRectF(3 + i * 4.5, 3, 4.5, 18))
         p.setPen(I._pen(O, 1.2)); p.setBrush(Qt.NoBrush); p.drawRect(QRectF(3, 3, 18, 18))
-    # ------------------------------------------------------------------ Effect categories
+    # --- Effect categories ---
     elif name == "repeat_effect":
         I._draw("effects", p)
         p.setPen(I._pen(O, 1.2)); p.setBrush(I.PAPER); p.drawEllipse(P(17.5, 17.5), 5.5, 5.5)
@@ -393,7 +393,7 @@ def draw(name, p):
         p.setBrush(QColor(90, 95, 110)); p.drawPolygon(QPolygonF([P(21, 3), P(21, 21), P(3, 21), P(7, 17), P(17, 17), P(17, 7)]))
         p.setBrush(QColor(170, 175, 190)); p.drawRect(QRectF(7, 7, 10, 10))
         p.setPen(I._pen(O, 1.1)); p.setBrush(Qt.NoBrush); p.drawRect(QRectF(3, 3, 18, 18))
-    # ------------------------------------------------------------------ Artistic
+    # --- Artistic ---
     elif name == "fx_ink_sketch":
         p.setPen(I._pen(O, 1.1)); p.setBrush(I.PAPER); p.drawRect(QRectF(3, 4, 18, 16))
         p.setPen(I._pen(O, 1.2))
@@ -437,7 +437,7 @@ def draw(name, p):
         for (x, y, rx, ry, s), c in zip(((9, 9, 5, 4, 1), (15, 12, 5, 4.5, 2), (10, 16, 5.5, 3.5, 3)),
                                         (QColor(40, 120, 215, 110), QColor(215, 60, 50, 100), QColor(245, 195, 50, 130))):
             p.setBrush(c); p.drawPath(_blob(p, x, y, rx, ry, seed=s))
-    # ------------------------------------------------------------------ Blurs
+    # --- Blurs ---
     elif name == "fx_fragment":
         p.setOpacity(0.45)
         for dx, dy in ((-2, -2), (2, -2), (-2, 2), (2, 2)):
@@ -471,7 +471,7 @@ def draw(name, p):
             a = i * math.pi / 6
             c = QColor(I.BLUE); c.setAlpha(170); p.setPen(I._pen(c, 1.3))
             p.drawLine(P(12 + 5 * math.cos(a), 12 + 5 * math.sin(a)), P(12 + 10 * math.cos(a), 12 + 10 * math.sin(a)))
-    # ------------------------------------------------------------------ Borders
+    # --- Borders ---
     elif name == "fx_simple_border":
         _photo(p, QRectF(3, 4, 18, 16), frame=False)
         p.setPen(QPen(I.OUT, 2.4, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin)); p.setBrush(Qt.NoBrush)
@@ -508,10 +508,11 @@ def draw(name, p):
     elif name == "fx_drop_shadow":
         p.setPen(Qt.NoPen); p.setBrush(QColor(0, 0, 0, 90)); p.drawRoundedRect(QRectF(6, 7, 16, 14), 1.5, 1.5)
         _photo(p, QRectF(2.5, 3, 16, 14))
-    # ------------------------------------------------------------------ Distort
+    # --- Distort ---
     elif name == "fx_bulge":
         p.setPen(I._pen(O, 1.1)); p.setBrush(QColor(225, 238, 252)); p.drawRect(QRectF(3, 3, 18, 18))
         p.setBrush(Qt.NoBrush); p.setPen(I._pen(I.BLUE, 1.1))
+
         def warp(x, y):
             dx, dy = x - 12, y - 12; d = math.hypot(dx, dy) / 9
             k = 1 + 0.35 * max(0, 1 - d * d) if d < 1 else 1
@@ -548,7 +549,7 @@ def draw(name, p):
             a = k * 0.17; r = k * 0.12
             path.lineTo(12 + r * math.cos(a), 12 + r * math.sin(a))
         p.setPen(I._pen(I.BLUE, 1.7)); p.setBrush(Qt.NoBrush); p.drawPath(path)
-    # ------------------------------------------------------------------ Noise
+    # --- Noise ---
     elif name == "fx_add_noise":
         p.setPen(I._pen(O, 1.1)); p.setBrush(I.PAPER); p.drawRect(QRectF(3, 3, 18, 18))
         _dots(p, QRectF(3, 3, 18, 18), 30, 4, [O, I.RED, I.GREEN, I.BLUE])
@@ -563,7 +564,7 @@ def draw(name, p):
         p.setPen(I._pen(O, 1.1)); p.setBrush(I.PAPER); p.drawRect(QRectF(3, 3, 18, 18))
         p.setOpacity(0.55); _dots(p, QRectF(3, 3, 18, 18), 16, 4, [O, I.BLUE]); p.setOpacity(1)
         p.setPen(I._pen(I.RED, 2.3)); p.drawLine(P(15, 18.5), P(22, 18.5))
-    # ------------------------------------------------------------------ Object
+    # --- Object ---
     elif name == "fx_align_object":
         p.setPen(I._pen(O, 1.1)); p.setBrush(I.PAPER); p.drawRect(QRectF(3, 3, 18, 18))
         p.setPen(I._pen(I.ORANGE.darker(130), 1.1)); p.setBrush(I.ORANGE); p.drawRect(QRectF(9, 9, 6, 6))
@@ -575,7 +576,7 @@ def draw(name, p):
         p.setPen(I._pen(O, 1.1)); p.setBrush(I.PAPER)
         f = QPainterPath(P(0, -9)); f.cubicTo(4.5, -4, 3.5, 4, 0, 8); f.cubicTo(-3.5, 4, -4.5, -4, 0, -9)
         p.drawPath(f); p.drawLine(P(0, -6), P(0, 10)); p.restore()
-    # ------------------------------------------------------------------ Photo
+    # --- Photo ---
     elif name == "fx_glow":
         rg = QRadialGradient(12, 12, 10.5); rg.setColorAt(0, QColor(255, 245, 190)); rg.setColorAt(0.5, QColor(255, 220, 100, 170))
         rg.setColorAt(1, QColor(255, 210, 80, 0))
@@ -600,7 +601,7 @@ def draw(name, p):
         g = QRadialGradient(12, 12, 12.5); g.setColorAt(0.45, QColor(0, 0, 0, 0)); g.setColorAt(1, QColor(0, 0, 0, 210))
         p.setPen(Qt.NoPen); p.setBrush(QBrush(g)); p.drawRect(QRectF(3, 4, 18, 16))
         p.setPen(I._pen(O, 1.1)); p.setBrush(Qt.NoBrush); p.drawRect(QRectF(3, 4, 18, 16))
-    # ------------------------------------------------------------------ Render (new)
+    # --- Render (new) ---
     elif name == "fx_difference_clouds":
         p.setPen(Qt.NoPen); p.setBrush(QColor(30, 30, 40)); p.drawRect(QRectF(3, 4, 18, 16))
         p.setBrush(QColor(250, 250, 255))
@@ -694,7 +695,7 @@ def draw(name, p):
             p.setPen(I._pen(QColor(120, 70, 30), 1.1)); p.drawEllipse(P(1, 12), r * 1.3, r)
         p.restore()
         p.setPen(I._pen(O, 1.1)); p.setBrush(Qt.NoBrush); p.drawRect(QRectF(3, 3, 18, 18))
-    # ------------------------------------------------------------------ Stylise
+    # --- Stylise ---
     elif name == "fx_edge_detect":
         p.setPen(I._pen(O, 1.1)); p.setBrush(QColor(40, 40, 48)); p.drawRect(QRectF(3, 4, 18, 16))
         p.setPen(I._pen(QColor(120, 230, 255), 1.3)); p.setBrush(Qt.NoBrush)

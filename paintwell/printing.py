@@ -1,6 +1,6 @@
 """Printing: a print preview window (choose printer, paper, orientation) with a choice of
 how big the picture prints."""
-from PySide6.QtCore import Qt, QRectF, QSizeF
+from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter, QColor, QImage, QPageLayout
 from PySide6.QtWidgets import QComboBox, QLabel, QSpinBox, QToolBar, QWidget, QHBoxLayout
 

@@ -1,5 +1,4 @@
 """Loading and saving images, including layered OpenRaster (.ora)."""
-import io
 import json
 import os
 import zipfile

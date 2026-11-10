@@ -1,15 +1,10 @@
-"""Click-and-drag on any number box to change its value.
+"""Drag left/right in any number box to change its value; hold Shift for fine steps.
 
-Press the left button inside a number box and slide left or right: the value goes
-down or up as you move.  Hold Shift for fine steps.  A plain click (no sliding)
-still puts the text cursor in the box so you can type a number as before.
-
-Big ranges such as brush width (1-2000 px) change in proportion to the current value,
-so small brushes move one pixel at a time and big brushes move faster.
+A click without dragging still puts the text cursor in the box. Large ranges (brush
+width goes up to 2000) step in proportion to the current value.
 """
 from PySide6.QtCore import QObject, QEvent, Qt
-from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QAbstractSpinBox, QDoubleSpinBox, QLineEdit, QApplication
+from PySide6.QtWidgets import QAbstractSpinBox, QDoubleSpinBox, QLineEdit
 
 THRESHOLD = 3      # pixels of movement before a press becomes a drag
 PX_PER_STEP = 1.0  # one step per pixel for small ranges
@@ -60,9 +55,9 @@ class DragSpinFilter(QObject):
         self.state = None
 
     def _finish(self):
-        """End a drag.  The release itself is always passed on to Qt: if it were swallowed,
-        Qt would not notice that the pointer had moved on (to the canvas, say) during the
-        drag, and the number box's left-right arrows would stay on screen."""
+        """End a drag. The release must still reach Qt, otherwise it keeps thinking the pointer
+        is over the number box and the resize cursor sticks.
+        """
         st, self.state = self.state, None
         if st is not None and st.dragging and _alive(st.spin):
             le = st.spin.lineEdit()

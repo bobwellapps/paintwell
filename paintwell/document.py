@@ -1,9 +1,9 @@
 """Document model: layers, selection, compositing and snapshot-based history."""
 import os
-from PySide6.QtCore import QObject, Signal, Qt, QRect, QRectF, QPoint, QPointF, QSize
-from PySide6.QtGui import QImage, QPainter, QPainterPath, QColor, QTransform
+from PySide6.QtCore import QObject, Signal, Qt, QRect, QRectF, QPointF
+from PySide6.QtGui import QImage, QPainter, QPainterPath, QColor
 
-from .imaging import new_image, FMT
+from .imaging import new_image
 
 BLEND_MODES = [
     ("Normal", QPainter.CompositionMode_SourceOver),
@@ -25,8 +25,7 @@ MAX_HISTORY = 80
 
 
 class TextItem:
-    """A finished piece of text that can still be re-opened with the Text tool, as long as the
-    pixels it covers haven't been painted over since."""
+    """Finished text that can be reopened in the Text tool until its pixels are painted over."""
 
     def __init__(self, lines, opts, color, pos, rect, under, over):
         self.lines = list(lines)
@@ -123,7 +122,7 @@ class Document(QObject):
         self.commit("Open Image" if path else "New Image", "image")
         self.saved_index = self.hindex
 
-    # ------------------------------------------------------------ naming
+    # --- Naming ---
     @property
     def title(self):
         if getattr(self, "display_name", None) and not self.path:
@@ -140,7 +139,7 @@ class Document(QObject):
         self.saved_index = self.hindex
         self.titleChanged.emit()
 
-    # ------------------------------------------------------------ layers
+    # --- Layers ---
     @property
     def layer(self):
         return self.layers[self.active]
@@ -154,7 +153,7 @@ class Document(QObject):
             self.active = i
             self.layersChanged.emit()
 
-    # ------------------------------------------------------------ compositing
+    # --- Compositing ---
     def invalidate(self, rect=None):
         """Recompose the given region and notify views."""
         if rect is None or rect.isNull():
@@ -186,7 +185,7 @@ class Document(QObject):
     def flattened(self):
         return QImage(self.composite()).copy()
 
-    # ------------------------------------------------------------ selection
+    # --- Selection ---
     def has_selection(self):
         return self.selection is not None
 
@@ -210,7 +209,7 @@ class Document(QObject):
         p.addRect(QRectF(self.rect()))
         return p
 
-    # ------------------------------------------------------------ history
+    # --- History ---
     def _capture(self):
         return State(self.w, self.h, [L.snapshot() for L in self.layers], self.active,
                      QPainterPath(self.selection) if self.selection is not None else None)
@@ -283,7 +282,7 @@ class Document(QObject):
             return QImage(st.layers[i].image)
         return QImage(self.layers[i].image)
 
-    # ------------------------------------------------------------ structural ops
+    # --- Structural ops ---
     def add_layer(self, image=None, name=None, index=None):
         if image is None:
             image = new_image(self.w, self.h)

@@ -21,8 +21,7 @@ def tick_steps(zoom, min_label_px=56):
 
 
 class Ruler(QWidget):
-    """horizontal=True: the ruler above the canvas (drag down from it for a horizontal guide).
-    horizontal=False: the ruler on the left (drag right from it for a vertical guide)."""
+    """Ruler along the top (horizontal=True) or left side. Dragging out of it adds a guide."""
 
     def __init__(self, canvas, horizontal):
         super().__init__(canvas)
@@ -33,7 +32,7 @@ class Ruler(QWidget):
         self.setToolTip("Drag onto the picture to add a guide. Right-click for guide options.")
         self._dragging = False
 
-    # ------------------------------------------------------------ painting
+    # --- Painting ---
     def paintEvent(self, e):
         c = self.canvas
         p = QPainter(self)
@@ -104,7 +103,7 @@ class Ruler(QWidget):
                 p.drawLine(QPointF(0, y), QPointF(w, y))
         p.end()
 
-    # ------------------------------------------------------------ dragging out a guide
+    # --- Dragging out a guide ---
     def _viewport_pos(self, e):
         return QPointF(self.canvas.viewport().mapFromGlobal(e.globalPosition().toPoint()))
 

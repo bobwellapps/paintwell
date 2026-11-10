@@ -18,8 +18,9 @@ def _path_mask(size, path):
 
 
 def cut_out(img, path):
-    """Make the pixels inside path transparent (in place), with the same smooth edge as
-    keep_inside, so the two pieces fit back together exactly."""
+    """Clear the pixels inside path (in place), with the same soft edge as keep_inside so the
+    two halves fit back together.
+    """
     from PySide6.QtGui import QPainter
     mask = _path_mask(img.size(), path)
     p = QPainter(img)
@@ -30,11 +31,11 @@ def cut_out(img, path):
 
 
 def keep_inside(img, path):
-    """Make every pixel of img outside path transparent (in place), with a smooth edge.
+    """Clear every pixel outside path (in place), with a soft edge.
 
-    Painting a shape with Qt's DestinationIn mode only touches the pixels under the
-    shape, so pixels outside it would be left as they were.  Drawing a whole-image
-    mask instead covers every pixel."""
+    DestinationIn with the shape itself would leave pixels outside it untouched, so a
+    full-size mask is drawn instead.
+    """
     from PySide6.QtGui import QPainter
     mask = _path_mask(img.size(), path)
     p = QPainter(img)
@@ -45,14 +46,12 @@ def keep_inside(img, path):
 
 
 def disjoint_over(dst, src, x, y):
-    """Draw src onto dst at (x, y) treating their soft edges as complementary.
+    """Draw src onto dst at (x, y), treating their soft edges as complementary.
 
-    Used when a cut-out selection is moved or rotated: the hole it leaves and the
-    floating pixels each have a half-transparent, antialiased edge.  Ordinary
-    "over" blending leaves those edge pixels only partly filled (a faint ring);
-    disjoint-over adds the two coverages instead, so the edge closes up exactly,
-    while over fully opaque pixels it behaves like normal blending.
-    Both images must be premultiplied ARGB32 (FMT)."""
+    When a selection is moved, both the hole and the lifted pixels have antialiased edges.
+    Normal 'over' blending leaves a faint ring there; adding the two coverages closes it,
+    while opaque pixels blend as usual. Both images must be FMT (premultiplied ARGB32).
+    """
     r = QRect(x, y, src.width(), src.height()).intersected(dst.rect())
     if r.isEmpty():
         return
@@ -149,11 +148,11 @@ def path_mask(path, w, h):
     return buf.reshape(h, img.bytesPerLine())[:, :w].astype(np.float32) / 255.0
 
 
-# ---------------------------------------------------------------- flood fill
+# --- Flood fill ---
 def color_distance_mask(rgba_u8, color, tolerance):
-    """rgba_u8: HxWx4 uint8 (unpremultiplied). tolerance 0..1.
-    Done in whole numbers, a band of rows at a time across the CPU cores (much faster and
-    lighter on memory than converting the whole picture to floating point)."""
+    """rgba_u8: H x W x 4 uint8, not premultiplied; tolerance 0..1.
+    Integer maths on bands of rows in parallel, to avoid a full float copy.
+    """
     h, w = rgba_u8.shape[:2]
     c = [int(v) for v in color]
     limit = (tolerance + 1e-6) ** 2 * 4 * 255 * 255
@@ -217,13 +216,14 @@ def mask_to_path(mask):
     return path
 
 
-# ---------------------------------------------------------------- multi-core helper
+# --- Multi-core helper ---
 _POOL = None
 
 
 def parallel(n_rows, job, min_rows=64, step=None):
-    """Run job(start, end) over chunks of range(n_rows) on all CPU cores.
-    numpy releases the GIL inside its loops, so threads really do run side by side."""
+    """Run job(start, end) over chunks of range(n_rows) on all cores. numpy releases the GIL
+    inside its loops, so the threads do run in parallel.
+    """
     global _POOL
     import os
     import threading
@@ -242,7 +242,7 @@ def parallel(n_rows, job, min_rows=64, step=None):
         f.result()
 
 
-# ---------------------------------------------------------------- filters
+# --- Filters ---
 def _box_blur_axis1(a, r, axis):
     if r <= 0:
         return a
@@ -310,9 +310,9 @@ def _gauss_boxes(radius):
 
 
 def gaussian_blur(a, radius):
-    """Approximate gaussian with three box blurs. radius ~ 3 sigma.
-    Each band of rows (then of columns) gets all three passes while it is still in the CPU cache,
-    with bands shared out across cores."""
+    """Gaussian approximated by three box blurs (radius ~ 3 sigma). Each band of rows/columns
+    gets all three passes while it's still in cache.
+    """
     if radius <= 0:
         return a.copy()
     rs = [r for r in _gauss_boxes(radius) if r > 0]
@@ -408,8 +408,9 @@ def hsv_to_rgb(h, s, v):
 
 
 def blur_image(img, radius):
-    """Gaussian blur of a whole QImage. Large blurs are done on a smaller copy that Qt scales down
-    and back up (in fast C++): a soft blur has no fine detail to lose."""
+    """Gaussian blur of a QImage. Large radii are done on a scaled-down copy, since a wide
+    blur has no fine detail to lose.
+    """
     if radius <= 0:
         return QImage(img)
     w, h = img.width(), img.height()

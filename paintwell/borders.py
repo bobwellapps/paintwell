@@ -1,7 +1,8 @@
-"""Effects › Borders. Each works on premultiplied float RGBA (HxWx4, 0..1).
+"""Effects > Borders. Each takes and returns premultiplied float RGBA (H x W x 4).
 
-Borders that can go outside the picture declare grow(params) -> (left, top, right, bottom) pixels;
-the main window enlarges the canvas by that much first (only when nothing is selected)."""
+Borders that can extend past the picture define grow(params) -> (left, top, right, bottom);
+the main window enlarges the canvas by that much before running them.
+"""
 import math
 import numpy as np
 from PySide6.QtCore import Qt, QRectF, QPointF
@@ -55,7 +56,7 @@ def _fill_outside(a, cover, fill, ctx):
     return a * c + col * (1 - c)
 
 
-# ---------------------------------------------------------------- simple / double line
+# --- Simple / double line ---
 def _grow_simple(p):
     if not p["outside"]:
         return (0, 0, 0, 0)
@@ -124,7 +125,7 @@ def double_border(a, p, ctx):
     return _arr(img)
 
 
-# ---------------------------------------------------------------- picture frame
+# --- Picture frame ---
 FRAME_STYLES = ["Moulded", "Bevelled", "Rounded", "Wood", "Gold", "Silver", "Flat", "Instant photo (wide bottom)"]
 MOUNT_COLOURS = ["White", "Cream", "Black", "Grey", "Primary colour", "Secondary colour"]
 
@@ -155,8 +156,9 @@ def _shade(c, k):
 
 
 def _ring_sides(x0, y0, x1, y1, t, b=None):
-    """The four mitred sides of a frame ring: outer box (x0,y0)-(x1,y1), width t (bottom b).
-    Returns [(name, polygon points, gradient start, gradient end)] going outer -> inner."""
+    """Mitred sides of a frame ring, outer box (x0, y0)-(x1, y1), width t (bottom b).
+    Returns [(name, points, gradient start, gradient end)], outer to inner.
+    """
     b = t if b is None else b
     ix0, iy0, ix1, iy1 = x0 + t, y0 + t, x1 - t, y1 - b
     P = QPointF
@@ -191,7 +193,7 @@ def picture_frame(a, p, ctx):
     q.setRenderHint(QPainter.Antialiasing, True)
     base = {"Wood": QColor(128, 80, 40), "Gold": QColor(200, 160, 60),
             "Silver": QColor(178, 180, 188)}.get(style, _colour(p["colour"], ctx))
-    white, black = QColor(255, 255, 255), QColor(0, 0, 0)
+    white = QColor(255, 255, 255)
     # cross-section of the moulding, from the outer edge (0) to the picture (1): (pos, lighten/darken)
     profiles = {
         "Moulded": [(0.0, -0.35), (0.12, -0.1), (0.32, 0.38), (0.5, 0.08), (0.82, -0.2), (1.0, -0.42)],
@@ -281,7 +283,7 @@ def picture_frame(a, p, ctx):
     return _arr(img)
 
 
-# ---------------------------------------------------------------- shaped edges
+# --- Shaped edges ---
 def rounded_corners(a, p, ctx):
     h, w = a.shape[:2]
     return _fill_outside(a, _rounded_cover(h, w, 0, p["radius"]), p["fill"], ctx)
@@ -335,7 +337,7 @@ def rough_edge(a, p, ctx):
     return _fill_outside(a, cover, p["fill"], ctx)
 
 
-# ---------------------------------------------------------------- drop shadow
+# --- Drop shadow ---
 def _grow_shadow(p):
     if not p["outside"]:
         return (0, 0, 0, 0)
@@ -360,12 +362,11 @@ def _backdrop(a, p, ctx):
 
 
 def drop_shadow(a, p, ctx):
-    """Shadow behind an object:
-    - the whole picture, once the canvas has grown to make room for it;
-    - the selected part, when there's a selection (cast onto the rest of the layer);
-    - a cut-out object on a see-through layer;
-    - a picture that fills the whole layer with no room added: it's shrunk a little to make
-      room inside the canvas, otherwise the shadow would be hidden behind it."""
+    """Shadow behind the selection, a cut-out object, or the whole picture.
+
+    If the picture fills the layer and no room was added, it's shrunk slightly so the
+    shadow has somewhere to go.
+    """
     h, w = a.shape[:2]
     alpha = a[..., 3]
     grown = ctx.get("grown")

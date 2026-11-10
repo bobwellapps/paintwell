@@ -6,9 +6,9 @@ import subprocess
 import threading
 
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QObject
-from PySide6.QtGui import QImage, QPainter, QColor, QPen, QBrush
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton,
-                               QProgressBar, QWidget, QSizePolicy, QMessageBox, QDialogButtonBox)
+from PySide6.QtGui import QImage, QPainter, QColor, QPen
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox,
+                               QPushButton, QProgressBar, QWidget, QSizePolicy, QMessageBox)
 
 MODE_NAMES = {"color": "Colour", "colour": "Colour", "gray": "Greyscale", "grey": "Greyscale",
               "grayscale": "Greyscale", "lineart": "Black & white", "binary": "Black & white",
@@ -21,12 +21,9 @@ def scanimage_path():
 
 
 def clean_env():
-    """Environment for running scanimage.
-
-    AppImage: scanimage is the system's own, so remove the AppImage's Python and library
-    settings, which could confuse it.
-    Snap: scanimage and its scanner drivers are inside the snap and need the snap's library
-    settings, so leave the environment as it is."""
+    """Environment for scanimage. In the AppImage it's the system's scanimage, so our Python
+    and library paths are removed. In a snap it's the bundled one and needs them.
+    """
     env = dict(os.environ)
     if env.get("SNAP") and not env.get("APPIMAGE"):
         return env
@@ -37,9 +34,9 @@ def clean_env():
 
 
 def _decode(b):
-    """scanimage's output as text.  Scanner drivers sometimes print bytes that aren't valid
-    UTF-8 (odd characters in device names, binary bits from network scanner discovery):
-    those are replaced instead of making the whole answer unreadable."""
+    """Decode scanimage output. Drivers sometimes emit invalid UTF-8, so bad bytes are
+    escaped rather than failing.
+    """
     if not b:
         return ""
     # surrogateescape keeps the original bytes, so a device name with an odd byte in it can be
@@ -213,6 +210,7 @@ class ScanJob(QObject):
 
 class PreviewArea(QWidget):
     """The preview scan, with a box you can drag to scan just part of the glass."""
+
     def __init__(self):
         super().__init__()
         self.img = None
@@ -333,7 +331,7 @@ class ScanDialog(QDialog):
         self._set_busy(False)
         QTimer.singleShot(0, self.find_devices)
 
-    # ---------------------------------------------------------------- background helpers
+    # --- Background helpers ---
     def _bg(self, fn, then, wait_text):
         self.status.setText(wait_text)
         self._set_busy(True, scanning=False)
@@ -366,7 +364,7 @@ class ScanDialog(QDialog):
         self.cancel_btn.setText("Cancel" if scanning else "Close")
         self.bar.setVisible(scanning)
 
-    # ---------------------------------------------------------------- scanners
+    # --- Scanners ---
     def current_device(self):
         k = self.dev.currentData()
         devices = getattr(self, "devices", [])
@@ -463,7 +461,7 @@ class ScanDialog(QDialog):
             x, y = x * self.preview.sel.width(), y * self.preview.sel.height()
         self.size_info.setText(f"About {round(x / 25.4 * dpi)} × {round(y / 25.4 * dpi)} pixels")
 
-    # ---------------------------------------------------------------- scanning
+    # --- Scanning ---
     def _area(self):
         g = self.opts.get("geometry", {})
         if self.preview.sel is None or not all(k in g for k in "xy"):

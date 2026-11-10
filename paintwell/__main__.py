@@ -58,17 +58,17 @@ def main():
     w = MainWindow(files)
     w.show()
     if not selftest:
-        def _open_passed(paths, token, startup_id):
+        def open_passed(paths, token, startup_id, win=w):
             for p in paths:
                 if os.path.exists(p):
-                    w.open_path(p)
-            instance.bring_to_front(w, token, startup_id)
-        _server = instance.InstanceServer(_open_passed, app)
+                    win.open_path(p)
+            instance.bring_to_front(win, token, startup_id)
+        app._instance_server = instance.InstanceServer(open_passed, app)   # keep it alive
     shot = os.environ.get("PAINTWELL_SELFTEST")
     if shot:  # used by the build to check the packaged app starts and renders
         from PySide6.QtCore import QTimer
-        QTimer.singleShot(1500, lambda: (w.grab().save(shot), print("platform:", app.platformName()),
-                                         [d.mark_saved() for d, c in w.docs], app.quit()))
+        QTimer.singleShot(1500, lambda win=w: (win.grab().save(shot), print("platform:", app.platformName()),
+                                               [d.mark_saved() for d, c in win.docs], app.quit()))
     ret = app.exec()
     # tear the window down while Qt is still alive (avoids crashes at interpreter exit)
     from PySide6.QtCore import QEvent
@@ -76,9 +76,8 @@ def main():
     w.deleteLater()
     app.sendPostedEvents(None, QEvent.DeferredDelete)
     del w
-    # Skip Python's own shutdown: on some systems (seen on Wayland) Qt objects get destroyed in
-    # the wrong order there and the process segfaults after the window has already closed.
-    # Everything is saved by now, so leave immediately.
+    # Skip interpreter shutdown: on some Wayland setups Qt objects are destroyed in the wrong
+    # order and the process segfaults after the window has closed. Everything is saved by now.
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(ret)

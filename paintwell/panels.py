@@ -2,8 +2,8 @@
 import math
 import numpy as np
 from PySide6.QtCore import Qt, QObject, Signal, QRectF, QPointF, QSize, QRect, QTimer, QEvent
-from PySide6.QtGui import (QColor, QPainter, QPen, QBrush, QImage, QPixmap, QIcon, QPalette, QPainterPath,
-                           QLinearGradient, QConicalGradient, QPolygonF)
+from PySide6.QtGui import (QColor, QPainter, QPen, QBrush, QImage, QPixmap, QIcon, QPalette,
+                           QPainterPath, QLinearGradient, QPolygonF)
 from PySide6.QtWidgets import (QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton, QButtonGroup,
                                QListWidget, QListWidgetItem, QLabel, QPushButton, QSlider, QSpinBox,
                                QLineEdit, QColorDialog, QSizePolicy, QFrame, QAbstractItemView, QMenu)
@@ -12,7 +12,7 @@ from . import icons
 from .canvas import checker_pixmap
 
 
-# ======================================================================= colors
+# --- Colors ---
 PALETTE_COLS = 15   # swatches per row (palette and Recent row)
 
 
@@ -46,8 +46,9 @@ PALETTE_MAX = 192  # palette grows a row at a time as colours are added (Paint.N
 
 
 def read_palette(path):
-    """Colours from a Paint.NET palette (.txt: one AARRGGBB or RRGGBB hex value per line,
-    ';' comments) or a GIMP palette (.gpl: 'R G B name' lines)."""
+    """Read a Paint.NET palette (.txt, one AARRGGBB or RRGGBB per line, ';' comments) or a
+    GIMP palette (.gpl).
+    """
     with open(path, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
     cols = []
@@ -183,9 +184,9 @@ class SwatchWidget(QWidget):
 
 
 class PaletteWidget(QWidget):
-    """Swatch grid; cells are sized at paint time from whatever space the layout gives it.
-    Shift+click replaces a swatch with the current colour, Ctrl+click removes it
-    (when editable).  `slots` reserves empty cells (used for the Recent row)."""
+    """Swatch grid sized at paint time. Shift+click replaces a swatch with the current colour,
+    Ctrl+click removes it (if editable). `slots` reserves empty cells, used for Recent.
+    """
     picked = Signal(QColor, bool)      # color, is_secondary
     replaceRequested = Signal(int)     # Shift+click on swatch i
     removeRequested = Signal(int)      # Ctrl+click on swatch i
@@ -531,8 +532,9 @@ class GradientSlider(QWidget):
 
 
 class FitScrollArea(QScrollArea):
-    """Scroll area that gives its widget all of the visible height when the widget fits,
-    and only scrolls when the widget's compact height (layout minimum) does not fit."""
+    """Scroll area that gives its widget the full visible height when it fits, and only
+    scrolls when even the widget's minimum height doesn't.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -694,7 +696,7 @@ class ColorsPanel(QWidget):
             full += pw.heightForWidth(inner) - pw.height()
         return full
 
-    # ------------------------------------------------------------ recent colours
+    # --- Recent colours ---
     def _load_recent(self):
         raw = self.settings.value("recent_colours", "") or ""
         cols = []
@@ -712,7 +714,7 @@ class ColorsPanel(QWidget):
         self.recent_w.set_colors(self.colors.recent)
         self.settings.setValue("recent_colours", ",".join(f"{c.rgba():08X}" for c in self.colors.recent))
 
-    # ------------------------------------------------------------ palette editing / files
+    # --- Palette editing / files ---
     def _load_palette(self):
         raw = self.settings.value("palette_colours", "") or ""
         cols = []
@@ -879,10 +881,9 @@ class ColorsPanel(QWidget):
         self.swatch.update()
 
 
-# ======================================================================= tools
+# --- Tools ---
 class FlyoutButton(QToolButton):
-    """Tool button that holds a group of tools (like Photoshop's Blur / Sharpen / Smudge):
-    it shows the last one used; hold the button down or right-click it to choose another."""
+    """Button for a group of tools. Shows the last one used; hold or right-click for the rest."""
 
     def paintEvent(self, e):
         super().paintEvent(e)
@@ -899,8 +900,9 @@ class FlyoutButton(QToolButton):
 
 
 class ToolsPanel(QWidget):
-    """Tool buttons in rows of five. Buttons are positioned by hand (no layout), so resizing the
-    panel only moves its own children and never feeds back into the dock's size."""
+    """Tool buttons in rows of five, placed by hand rather than with a layout so resizing never
+    feeds back into the dock's size.
+    """
     COLS = 5
     MAX_BUTTON = 72
 
@@ -1003,7 +1005,7 @@ class ToolsPanel(QWidget):
             b.setChecked(True)
 
 
-# ======================================================================= layers
+# --- Layers ---
 def thumb(img, size=40, text_badge=False):
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
@@ -1129,7 +1131,7 @@ class LayersPanel(QWidget):
             self.doc.commit("Layer Shown" if vis else "Layer Hidden", "layer_props")
 
 
-# ======================================================================= history
+# --- History ---
 class HistoryPanel(QWidget):
     def __init__(self, app):
         super().__init__()
@@ -1183,7 +1185,7 @@ class HistoryPanel(QWidget):
         self.doc.goto(self.list.row(it))
 
 
-# ======================================================================= navigator
+# --- Navigator ---
 class NavView(QWidget):
     """Thumbnail of the whole picture with a red box showing the part in view.
     Click or drag to move the view; the mouse wheel zooms."""
@@ -1330,7 +1332,7 @@ class NavigatorPanel(QWidget):
         self._timer.timeout.connect(self._refresh_thumb)
         self._dirty = True
 
-    # ---------------------------------------------------------------- following the canvas
+    # --- Following the canvas ---
     def set_canvas(self, canvas):
         if canvas is self.canvas:
             return

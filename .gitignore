@@ -22,3 +22,9 @@ prime/
 .vscode/
 *.swp
 .directory
+
+# snap packaging: kept on this computer, not uploaded to GitHub
+snap/
+snap-tools/
+SNAP-RELEASE.md
+STORE-LISTING.txt

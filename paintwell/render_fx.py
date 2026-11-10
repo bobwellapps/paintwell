@@ -1,9 +1,7 @@
-"""Effects › Render: lens flare, lighting, fractals, plasma, textures, stars, rain/snow,
-sunburst, fibres and difference clouds.  Each takes and returns premultiplied float RGBA
-(HxWx4, 0..1), like the other effects."""
+"""Effects > Render. Each takes and returns premultiplied float RGBA (H x W x 4)."""
 import math
 import numpy as np
-from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QImage, QPainter, QColor, QPen, QRadialGradient, QBrush
 
 from . import imaging as im
@@ -73,7 +71,7 @@ def _coords(h, w):
     return xs + 0.5, ys + 0.5
 
 
-# ------------------------------------------------------------------ noise
+# --- Noise ---
 def fbm(h, w, scale, rough, rng, sx=1.0, sy=1.0, ctx=None, min_size=1.0):
     """Smooth fractal value noise, 0..1.  sx/sy stretch it (sy > 1 = long vertical streaks)."""
     total = np.zeros((h, w), np.float32)
@@ -103,7 +101,7 @@ def fbm(h, w, scale, rough, rng, sx=1.0, sy=1.0, ctx=None, min_size=1.0):
     return np.clip((t - t.min()) / max(float(t.max() - t.min()), 1e-6), 0, 1)
 
 
-# ------------------------------------------------------------------ difference clouds
+# --- Difference clouds ---
 def difference_clouds(a, p, ctx):
     h, w = a.shape[:2]
     t = fbm(h, w, p["scale"], p["roughness"] / 100.0, np.random.default_rng(p["seed"]), ctx=ctx)[..., None]
@@ -115,7 +113,7 @@ def difference_clouds(a, p, ctx):
     return _from_straight(np.abs(_straight(a) - cl), a)
 
 
-# ------------------------------------------------------------------ fibres
+# --- Fibres ---
 def fibres(a, p, ctx):
     h, w = a.shape[:2]
     rng = np.random.default_rng(p["seed"])
@@ -132,7 +130,7 @@ def fibres(a, p, ctx):
     return _opaque(cl)
 
 
-# ------------------------------------------------------------------ fractals
+# --- Fractals ---
 PALETTES = ["Rainbow", "Fire", "Ice", "Primary to secondary colour"]
 
 
@@ -217,7 +215,7 @@ def mandelbrot(a, p, ctx):
     return _colour_fractal(a, cnt, h, w, p, ctx)
 
 
-# ------------------------------------------------------------------ plasma
+# --- Plasma ---
 def plasma(a, p, ctx):
     h, w = a.shape[:2]
     rng = np.random.default_rng(p["seed"])
@@ -233,7 +231,7 @@ def plasma(a, p, ctx):
     return _opaque(rgb)
 
 
-# ------------------------------------------------------------------ lens flare
+# --- Lens flare ---
 LENSES = ["Zoom lens", "Prime lens", "Soft glow"]
 
 
@@ -281,7 +279,7 @@ def lens_flare(a, p, ctx):
     return _screen(a, light * bright)
 
 
-# ------------------------------------------------------------------ lighting effects
+# --- Lighting effects ---
 LIGHT_TYPES = ["Spotlight", "Round light", "Light from one side"]
 LIGHT_COLOURS = ["White", "Warm", "Cool", "Primary colour"]
 
@@ -327,7 +325,7 @@ def lighting(a, p, ctx):
     return _from_straight(_straight(a) * lightmap, a)
 
 
-# ------------------------------------------------------------------ textures
+# --- Textures ---
 TEXTURES = ["Wood", "Marble", "Granite"]
 
 
@@ -392,7 +390,7 @@ def texture(a, p, ctx):
     return _opaque(rgb)
 
 
-# ------------------------------------------------------------------ starfield
+# --- Starfield ---
 STAR_BACKGROUNDS = ["Black space", "Deep blue night", "Keep the picture"]
 
 
@@ -453,7 +451,7 @@ def starfield(a, p, ctx):
     return _screen(base, stars[..., :3])
 
 
-# ------------------------------------------------------------------ rain and snow
+# --- Rain and snow ---
 def rain_snow(a, p, ctx):
     h, w = a.shape[:2]
     rng = np.random.default_rng(p["seed"])
@@ -510,7 +508,7 @@ def rain_snow(a, p, ctx):
     return out
 
 
-# ------------------------------------------------------------------ sunburst
+# --- Sunburst ---
 SUNBURST_COLOURS = ["Sunny yellow", "Retro orange", "Sky blue", "Primary and secondary colour"]
 
 

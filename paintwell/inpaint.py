@@ -1,19 +1,11 @@
-"""Content-Aware Fill: rebuild a selected area from the picture around it.
+"""Content-Aware Fill: rebuild a selected area from the surrounding picture.
 
-The method is PatchMatch-based image completion (Barnes et al. 2009, Wexler et al. 2007),
-the same family of techniques used by Photoshop's Content-Aware Fill and GIMP's
-Resynthesizer.  It works coarse-to-fine on an image pyramid:
-
-  * at each level every small patch touching the hole is matched to the most similar patch
-    from the known (unselected) part of the picture - found quickly with PatchMatch's
-    "propagate good matches to neighbours + random search" trick, done on whole arrays;
-  * the hole is then repainted by letting every overlapping matched patch vote for its
-    pixels (a weighted average), and the two steps repeat a few times;
-  * the result is enlarged to the next level as the starting point there.
-
-Everything is numpy, working only on a box around the hole, so it stays reasonably quick.
+PatchMatch-based image completion (Barnes et al. 2009, Wexler et al. 2007), coarse to
+fine on an image pyramid. At each level, patches touching the hole are matched to
+similar patches outside it (PatchMatch propagation plus random search, vectorised), the
+hole is repainted by letting overlapping matches vote, and the result seeds the next
+level. Only a box around the hole is processed.
 """
-import math
 import numpy as np
 
 PATCH = 7                       # patch size (pixels) used for matching and voting
@@ -59,10 +51,9 @@ def _dilate(m, r):
 
 
 def _onion_fill(img, hole, check):
-    """First guess for the hole on the smallest level: fill it ring by ring from the edge
-    inwards, copying each pixel from the real patch that best matches the part of its
-    surroundings already known.  (All candidate patches are compared at once with matrix
-    maths, which is quick at this small size.)"""
+    """Initial fill for the coarsest level: work inwards ring by ring, copying each pixel from
+    the patch that best matches its already-known neighbours.
+    """
     a = img.astype(np.float32).copy()
     H, W, C = a.shape
     valid = ~_dilate(hole, PR)
@@ -124,9 +115,9 @@ HOLE_TRUST = 0.35   # how much the current guesses inside the hole count when co
 
 
 def _patch_dist(P, ty, tx, sy, sx, offs, Wt=None):
-    """Sum of squared differences between patches centred at (ty,tx) and (sy,sx) in the
-    padded image P (centres given in unpadded coordinates).  Wt (padded, per pixel) weights
-    the target side: real surrounding pixels count fully, guesses in the hole count less."""
+    """SSD between patches centred at (ty, tx) and (sy, sx) in padded image P (unpadded
+    coordinates). Wt weights the target side, so guessed hole pixels count less.
+    """
     d = np.zeros(ty.shape, np.float32)
     for dy, dx in offs:
         a = P[ty + (dy + PR), tx + (dx + PR)]
@@ -156,7 +147,6 @@ def _patchmatch(L, nny, nnx, rng, iters, check):
     maxr = max(H, W)
 
     def consider(cy, cx):
-        nonlocal sy, sx, best
         ok = (cy >= 0) & (cy < H) & (cx >= 0) & (cx < W)
         cy = np.clip(cy, 0, H - 1); cx = np.clip(cx, 0, W - 1)
         ok &= L.valid[cy, cx]
@@ -213,8 +203,9 @@ def _vote(L, nny, nnx, dist):
 
 
 def fill(img, hole, progress=None, cancelled=None, seed=1):
-    """img: H x W x C float32 (0..1), hole: H x W bool.  Returns img with the hole filled.
-    progress(fraction) is called now and then; cancelled() -> True stops with Cancelled."""
+    """img: H x W x C float32 in 0..1, hole: H x W bool. Returns img with the hole filled.
+    progress(fraction) is called now and then; cancelled() returning True raises Cancelled.
+    """
     def check():
         if cancelled is not None and cancelled():
             raise Cancelled()
@@ -248,6 +239,7 @@ def fill(img, hole, progress=None, cancelled=None, seed=1):
     total = sum((imgs[i].shape[0] * imgs[i].shape[1]) for i in range(len(imgs)))
     done = 0.0
     nny = nnx = None
+    prev_img = prev_nny = prev_nnx = None   # the coarser level's result, set at the end of each pass
     for lv in range(levels, -1, -1):
         check()
         cur = imgs[lv].copy()
@@ -291,10 +283,11 @@ def fill(img, hole, progress=None, cancelled=None, seed=1):
     return out
 
 
-# ---------------------------------------------------------------- thin areas (Remove tool)
+# --- Thin areas (Remove tool) ---
 def _harmonic(a, hole, iters=40):
-    """Smooth "membrane" fill: each hole pixel ends up the average of its neighbours
-    (Laplace's equation), solved coarse to fine so it settles quickly."""
+    """Membrane fill: each hole pixel becomes the average of its neighbours (Laplace),
+    solved coarse to fine.
+    """
     H, W = hole.shape
     out = a.copy()
     if min(H, W) > 16:
@@ -317,8 +310,7 @@ def _harmonic(a, hole, iters=40):
 
 
 def _onion_fast(img, hole, check, stride=2):
-    """_onion_fill with the source patches taken on a coarser grid: much quicker, and for
-    the texture detail it is used for here it looks the same."""
+    """_onion_fill sampling source patches on a coarser grid. Much faster and fine for texture."""
     a = img.astype(np.float32).copy()
     H, W, C = a.shape
     valid = ~_dilate(hole, PR)
@@ -367,10 +359,9 @@ def hole_depth(hole, limit=64):
 
 
 def fill_thin(img, hole, progress=None, cancelled=None):
-    """Fill a thin hole (a wire, a scratch, a blemish): the colours and shading are carried
-    smoothly in from its edges, then texture copied from the surroundings is added back,
-    only as strongly as the surroundings themselves are textured (so smooth sky stays smooth
-    and grass stays grassy)."""
+    """Fill a thin hole (wire, scratch, blemish): blend colour in smoothly from the edges, then
+    add back texture from nearby, scaled to how textured the surroundings are.
+    """
     def check():
         if cancelled is not None and cancelled():
             raise Cancelled()

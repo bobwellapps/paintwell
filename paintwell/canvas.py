@@ -1,9 +1,8 @@
 """The scrollable, zoomable canvas view."""
 import math
 import time
-from PySide6.QtCore import Qt, QPointF, QRectF, QRect, QPoint, QTimer, Signal, QEvent
-from PySide6.QtGui import (QPainter, QPen, QColor, QBrush, QPixmap, QTransform, QCursor,
-                           QPalette)
+from PySide6.QtCore import Qt, QPointF, QRectF, QRect, QTimer, Signal, QEvent
+from PySide6.QtGui import QPainter, QPen, QColor, QBrush, QPixmap, QTransform, QPalette
 from PySide6.QtWidgets import QAbstractScrollArea
 from .rulers import Ruler, RulerCorner, RULER, GUIDE_COLOR
 
@@ -66,7 +65,7 @@ class Canvas(QAbstractScrollArea):
         self.horizontalScrollBar().valueChanged.connect(self.viewport().update)
         self.verticalScrollBar().valueChanged.connect(self.viewport().update)
 
-    # ------------------------------------------------------------ geometry
+    # --- Geometry ---
     def _axis(self, view, size):
         """Centring shift for an axis: when the image fits, scroll value 0 means centred."""
         return (view - size) / 2 - MARGIN if size + 2 * MARGIN <= view else 0.0
@@ -91,8 +90,9 @@ class Canvas(QAbstractScrollArea):
         return QPointF(ip.x() * self.zoom + o.x(), ip.y() * self.zoom + o.y())
 
     def _layout(self, want=None):
-        """Set the scroll ranges. want=(x, y) scroll values that must be reachable (pointer zoom);
-        the range is stretched past the usual margins to allow them."""
+        """Set the scroll ranges. `want` is an (x, y) scroll position that must stay reachable
+        (used when zooming around the pointer).
+        """
         vw, vh = self.viewport().width(), self.viewport().height()
         sw, sh = self.doc.w * self.zoom, self.doc.h * self.zoom
         hb, vb = self.horizontalScrollBar(), self.verticalScrollBar()
@@ -111,7 +111,7 @@ class Canvas(QAbstractScrollArea):
     def reset_slack(self):
         self._slack = [0, 0, 0, 0]
 
-    # ------------------------------------------------------------ rulers
+    # --- Rulers ---
     def set_rulers(self, on):
         self.show_rulers = bool(on)
         m = RULER if self.show_rulers else 0
@@ -138,7 +138,7 @@ class Canvas(QAbstractScrollArea):
             self.hruler.update()
             self.vruler.update()
 
-    # ------------------------------------------------------------ guides
+    # --- Guides ---
     def guide_view_pos(self, orient, pos):
         o = self.origin()
         return (o.y() if orient == "h" else o.x()) + pos * self.zoom
@@ -230,7 +230,7 @@ class Canvas(QAbstractScrollArea):
         else:
             self._layout()
 
-    # ------------------------------------------------------------ zoom
+    # --- Zoom ---
     def set_zoom(self, z, anchor=None):
         z = max(ZOOM_LEVELS[0], min(ZOOM_LEVELS[-1], z))
         if anchor is None:
@@ -311,7 +311,7 @@ class Canvas(QAbstractScrollArea):
         hb.setValue(int(hb.value() - dx))
         vb.setValue(int(vb.value() - dy))
 
-    # ------------------------------------------------------------ painting
+    # --- Painting ---
     def _doc_changed(self, rect):
         if rect.isNull() or rect.isEmpty():
             self.viewport().update()
@@ -433,7 +433,7 @@ class Canvas(QAbstractScrollArea):
         else:
             p.drawLine(QPointF(v, r.top()), QPointF(v, r.bottom()))
 
-    # ------------------------------------------------------------ input
+    # --- Input ---
     def _img_pos(self, e):
         return self.to_image(e.position())
 
@@ -516,7 +516,7 @@ class Canvas(QAbstractScrollArea):
 
     def wheelEvent(self, e):
         # Wheel = zoom around the cursor. Shift+wheel or Alt+wheel scrolls sideways,
-        # Ctrl+wheel scrolls up/down.  (With Alt held, Qt often reports the wheel as
+        # Ctrl+wheel scrolls up/down. (With Alt held, Qt often reports the wheel as
         # horizontal already, so take whichever direction has movement.)
         d = e.angleDelta()
         if e.modifiers() & (Qt.ShiftModifier | Qt.AltModifier):

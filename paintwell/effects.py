@@ -73,8 +73,9 @@ class Effect:
         return im.u8_to_image(out, False)
 
     def _render_bands(self, src, params, ctx, halo):
-        """Local effects: overlapping bands of rows on all cores. Each band gets `halo` extra rows
-        above and below, so the kept middle is exactly what the whole-image run would give."""
+        """Run on overlapping bands of rows across all cores. Each band gets `halo` extra rows
+        above and below, so the result matches a single whole-image run.
+        """
         img = src.img
         w, h = img.width(), img.height()
         out = np.empty((h, w, 4), np.uint8)
@@ -142,12 +143,12 @@ _strips = im.parallel
 
 # params: (key, label, kind, default, min, max)  kind: int/float/bool/choice/angle/seed
 
-# ================================================================= adjustments
+# --- Adjustments ---
 def auto_level(a, p, ctx):
-    """Like Photoshop's Auto Tone / Paint.NET's Auto-Level: each colour's darkest and lightest
-    tones are stretched to black and white (ignoring the odd stray pixel), then the midtones
-    are brightened or darkened together so the picture's average sits near the middle.
-    One shared midtone setting keeps the picture's overall colour (a sunset stays warm)."""
+    """Stretch each channel's darkest/lightest tones to black and white (ignoring outliers),
+    then shift the midtones together so the average lands near the middle. A shared
+    midtone shift keeps the overall colour cast, e.g. a sunset stays warm.
+    """
     out = a.copy()
     mask = a[..., 3] > 0
     if ctx.get("mask") is not None and ctx["mask"].shape == mask.shape:
@@ -217,7 +218,7 @@ def posterize(a, p, ctx):
     for i, k in enumerate(("red", "green", "blue")):
         n = p["red"] if p["linked"] else p[k]
         n = max(2, int(n))
-        # Photoshop-style: split 0..1 into n equal bands, each band becomes one level
+        # n equal bands over 0..1, one output level per band (matches Photoshop)
         out[..., i] = np.minimum(np.floor(a[..., i] * n), n - 1) / (n - 1)
     return out
 
@@ -326,7 +327,7 @@ ADJUSTMENTS = [
 ]
 
 
-# ================================================================= effects (premultiplied)
+# --- Effects (premultiplied) ---
 def gaussian(a, p, ctx):
     return im.gaussian_blur(a, p["radius"])
 
@@ -621,7 +622,7 @@ def oil_painting(a, p, ctx):
     return im.premultiply(np.clip(out, 0, 1))
 
 
-# ---------------------------------------------------------------- Old Photo / artistic extras
+# --- Old Photo / artistic extras ---
 OLD_PHOTO_STYLES = ["Sepia", "Black and white", "Faded colour"]
 
 
@@ -637,8 +638,7 @@ def _grain(h, w, rng, scale):
 
 
 def old_photo(a, p, ctx):
-    """An aged print: sepia / black-and-white / faded colour toning, lifted blacks and softer
-    contrast, film grain, scratches and dust, and darker edges."""
+    """Aged print: toning, lifted blacks, softer contrast, grain, scratches, dust, vignette."""
     u = im.unpremultiply(a)
     h, w = u.shape[:2]
     rng = np.random.default_rng(p["seed"])
@@ -696,8 +696,9 @@ def old_photo(a, p, ctx):
 
 
 def _flat_colours(u, brush, coarseness, ctx, max_px=2_000_000):
-    """Flat areas of colour (oil-paint style "most common colour nearby").  Big pictures are
-    done on a smaller copy and enlarged again - flat washes don't need full detail."""
+    """Flat patches of the most common colour nearby. Large images are processed at a
+    reduced size and scaled back up.
+    """
     h, w = u.shape[:2]
     f = 1.0
     if h * w > max_px:
@@ -719,8 +720,9 @@ def _sobel(y):
 
 
 def watercolour(a, p, ctx):
-    """Watercolour painting: soft, light washes of colour that bleed a little, darker pigment
-    gathered at the rims of each wash, slight blotchiness and the grain of the paper."""
+    """Soft washes that bleed a little, darker pigment at the edges of each wash, some
+    blotchiness and paper grain.
+    """
     u = im.unpremultiply(a)
     h, w = u.shape[:2]
     r = int(p["brush"])
@@ -936,16 +938,12 @@ def feather_object(a, p, ctx):
 
 
 def feather_object_image(img, p, ctx):
-    """Feather Object: soften the edge of an object that sits
-    on a transparent background (or, with a selection, the selected part).
+    """Soften the edge of an object on a transparent background (or of the selection).
 
-    Outward (the default): the object keeps its full size and stays solid; the
-    transparent pixels around it take on its colour and fade out over about `radius` pixels.
-    Inward: the object's own edge fades, from clear at the edge to solid `radius` pixels in.
-    Both sides: the fade is centred on the edge.
-
-    Works straight on the image's bytes, in tiles: only tiles near an edge are touched, so big
-    pictures stay quick."""
+    Outward: the object keeps its size; the pixels around it take its colour and fade out
+    over `radius`. Inward: the object's own edge fades. Both: the fade straddles the edge.
+    Only 32 px tiles near an edge are touched.
+    """
     r = int(p["radius"])
     direction = p.get("direction", FEATHER_DIRECTIONS[0])
     direction = FEATHER_DIRECTIONS.index(direction) if direction in FEATHER_DIRECTIONS else 0
@@ -1048,9 +1046,10 @@ def feather_object_image(img, p, ctx):
 
 
 def align_object(a, p, ctx):
-    """Find the object inside the selection and move it to the chosen edge/centre of the selection.
-    The object is every non-transparent pixel; if the area is fully opaque, it is every pixel that
-    differs from the background colour (the most common corner colour)."""
+    """Move the object in the selection to an edge or the centre of the selection. The object
+    is every non-transparent pixel, or, if the area is opaque, every pixel that differs
+    from the background (the most common corner colour).
+    """
     h, w = a.shape[:2]
     mask = ctx.get("mask")
     inside = np.ones((h, w), bool) if mask is None else mask

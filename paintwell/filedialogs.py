@@ -1,7 +1,8 @@
-"""Open / Save dialogs with a typed Location bar (like a Windows address bar) and an image preview.
+"""Open/save dialogs with an editable location bar and an image preview.
 
-Qt's own file dialog is used (not the desktop's), so it looks and works the same everywhere and
-always lets you type or paste a path."""
+Uses Qt's own dialog rather than the desktop's, so it behaves the same everywhere and
+always accepts a typed or pasted path.
+"""
 import os
 from PySide6.QtCore import Qt, QDir, QUrl, QStandardPaths, QTimer, QSize
 from PySide6.QtGui import QImageReader, QPixmap
@@ -77,7 +78,7 @@ class PathFileDialog(QFileDialog):
                 h.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         self.resize(980, 600)
 
-    # ---------------------------------------------------------------- sidebar
+    # --- Sidebar ---
     def _sidebar(self):
         urls = [QUrl.fromLocalFile(QDir.homePath())]
         for loc in (QStandardPaths.DesktopLocation, QStandardPaths.DocumentsLocation,
@@ -91,7 +92,7 @@ class PathFileDialog(QFileDialog):
                 urls.append(QUrl.fromLocalFile(media))
         self.setSidebarUrls(urls)
 
-    # ---------------------------------------------------------------- location bar
+    # --- Location bar ---
     def _location_bar(self):
         combo = self.findChild(QComboBox, "lookInCombo")
         label = self.findChild(QLabel, "lookInLabel")
@@ -150,7 +151,7 @@ class PathFileDialog(QFileDialog):
         self.location.setToolTip("That folder or file doesn't exist")
         QTimer.singleShot(1200, lambda: (self.location.setStyleSheet(""), self.location.setToolTip("")))
 
-    # ---------------------------------------------------------------- preview
+    # --- Preview ---
     def _add_preview(self):
         sp = self.findChild(QSplitter, "splitter")
         if sp is None:

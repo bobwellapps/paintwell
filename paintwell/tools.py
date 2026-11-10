@@ -1,7 +1,7 @@
 """Drawing and selection tools."""
 import math
 import numpy as np
-from PySide6.QtCore import Qt, QPointF, QRectF, QRect, QPoint, QLineF, QSizeF, QTimer
+from PySide6.QtCore import Qt, QPointF, QRectF, QRect, QPoint, QLineF, QTimer
 from PySide6.QtGui import (QPainter, QPen, QColor, QBrush, QPainterPath, QTransform, QImage,
                            QPolygonF, QLinearGradient, QRadialGradient, QConicalGradient, QFont,
                            QFontMetricsF, QCursor, QPainterPathStroker)
@@ -65,11 +65,9 @@ _ROT_CURSORS = {}
 
 
 def rotate_cursor(direction=-90.0):
-    """Curved double-arrow cursor for rotating.
-
-    direction is the screen angle (degrees, 0 = right, 90 = down) pointing from the
-    centre of the box out towards the pointer; the curve bulges that way so it wraps
-    around whichever corner you are on.  Cursors are made once per 15° and cached."""
+    """Curved double-arrow rotate cursor. direction is the angle (0 = right, 90 = down) from
+    the box centre to the pointer. Cached per 15 degrees.
+    """
     step = int(round(direction / 15.0)) % 24
     cur = _ROT_CURSORS.get(step)
     if cur is None:
@@ -212,7 +210,7 @@ class Tool:
         pass
 
 
-# =================================================================== selection tools
+# --- Selection tools ---
 class RectSelectTool(Tool):
     flyout = "marquee"        # shares one Tools button with Ellipse Select
     name = "Rectangle Select"
@@ -327,14 +325,14 @@ class LassoSelectTool(Tool):
         self.commit()
 
 
-# ------------------------------------------------------------------ magnetic lasso
+# --- Magnetic lasso ---
 class EdgeMap:
-    """Edge information for a picture, worked out a tile at a time as it is needed.
+    """Edge data for the Magnetic Lasso, computed per tile on demand.
 
-    The picture is smoothed a little first (so film grain and JPEG noise don't count as edges),
-    then for each pixel we keep the edge strength (colour gradient; a full black/white step is
-    about 1) and whether it sits right on the edge line (a zero crossing of the Laplacian),
-    which pins the outline to the middle of soft edges instead of letting it wander."""
+    The image is smoothed first so grain and JPEG noise don't count. Per pixel it keeps the
+    gradient strength and whether the pixel is on a Laplacian zero crossing, which keeps the
+    path centred on soft edges.
+    """
     TILE = 256
     MARGIN = 6
     _full_step = None
@@ -406,10 +404,9 @@ class EdgeMap:
 
 
 class LiveWire:
-    """Cheapest edge-hugging path from an anchor to wherever the pointer is ("intelligent
-    scissors").  Only pixels near where the pointer has actually been are allowed (the
-    lasso's Width), and the search is grown only as far as it needs to be, so following the
-    pointer stays quick."""
+    """Live-wire path from an anchor to the pointer. The search is limited to pixels near the
+    pointer's track (the Width option) and only grown as far as needed.
+    """
     RADIUS = 200          # search window round the anchor
 
     def __init__(self, edges, anchor, contrast):
@@ -561,11 +558,10 @@ def smooth_points(pts, sigma=1.1, closed=False):
 
 
 class MagneticLassoTool(Tool):
-    """Selection outline that clings to edges as you trace round an object, like Photoshop's
-    Magnetic Lasso.  Click to start, then move the pointer along the edge: the outline from the
-    last anchor to the pointer follows the strongest edge nearby and updates as you move, and
-    anchors are fixed behind you as you go.  Click to add an anchor yourself, Backspace removes
-    the last one, double-click / Enter / clicking the start point closes it, Esc cancels."""
+    """Magnetic Lasso. The segment from the last anchor follows the strongest nearby edge, and
+    anchors are dropped automatically. Click adds an anchor, Backspace removes one, Enter or
+    double-click closes, Esc cancels.
+    """
     name = "Magnetic Lasso"
     icon = "magnetic_lasso"
     key = "S"
@@ -583,7 +579,7 @@ class MagneticLassoTool(Tool):
         self.live = []        # last anchor .. pointer, still following the pointer
         self.edoc = None
 
-    # ---------------------------------------------------------------- helpers
+    # --- Helpers ---
     def _px(self, pos):
         return (int(math.floor(pos.x())), int(math.floor(pos.y())))
 
@@ -670,7 +666,7 @@ class MagneticLassoTool(Tool):
     def points(self, closed=False):
         return self.fixed + self.live[1:]
 
-    # ---------------------------------------------------------------- input
+    # --- Input ---
     def press(self, pos, button, mods, canvas):
         if button not in (Qt.LeftButton, Qt.RightButton):
             return
@@ -831,9 +827,9 @@ class MagneticLassoTool(Tool):
 
 
 class MagicWandTool(Tool):
-    """Click to select an area of similar colour.  Changing Tolerance (or Flood mode, or
-    Sampling) straight after a click redoes that click live, so you can watch the selection
-    grow and shrink, as in Photoshop."""
+    """Magic Wand. Changing Tolerance, Flood mode or Sampling right after a click re-runs that
+    click, so the selection updates live.
+    """
     name = "Magic Wand"
     icon = "magic_wand"
     key = "S"
@@ -922,7 +918,7 @@ class MagicWandTool(Tool):
         return Qt.PointingHandCursor
 
 
-# =================================================================== move tools
+# --- Move tools ---
 class XForm:
     """Centre / rotation / scale description of a transform applied to a rect."""
 
@@ -959,8 +955,9 @@ class XForm:
     DIRS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 
     def rotate_handles(self, canvas):
-        """[(round rotate-handle view point, corner view point)] for the four corners.
-        Each round handle sits just outside its corner, along the line from the centre."""
+        """[(rotate handle, corner)] in view coordinates for the four corners. Each rotate handle
+        sits just outside its corner, on the line from the centre.
+        """
         pts = self.handle_points()
         c = canvas.to_view(QPointF(self.cx, self.cy))
         out = []
@@ -1141,8 +1138,9 @@ class MoveTool(Tool):
         return norm_angle(self.xf.angle) if self._valid() else 0.0
 
     def set_angle(self, ang, name="Rotate Selection"):
-        """Rotate the selected pixels (or outline) to an exact angle, e.g. from the options bar.
-        Repeated changes from the bar are merged into one history entry."""
+        """Rotate to an exact angle (from the options bar). Repeated changes merge into one
+        history step.
+        """
         d = self.doc
         if d is None:
             return
@@ -1292,8 +1290,9 @@ class MoveTool(Tool):
         return None
 
     def _on_rotate_handle(self, pos, canvas):
-        """True over a round corner handle, or anywhere just outside a corner of the box
-        (but not on a square resize handle and not inside the box)."""
+        """True over a rotate handle or just outside a corner, but not on a resize handle or
+        inside the box.
+        """
         box = self._box()
         if box is None:
             return False
@@ -1354,7 +1353,7 @@ class MoveSelectionTool(MoveTool):
     pixels = False
 
 
-# =================================================================== view tools
+# --- View tools ---
 class ZoomTool(Tool):
     name = "Zoom"
     icon = "zoom"
@@ -1427,7 +1426,7 @@ class PanTool(Tool):
         return Qt.ClosedHandCursor if self.last is not None else Qt.OpenHandCursor
 
 
-# =================================================================== fill tools
+# --- Fill tools ---
 class BucketTool(Tool):
     adds_paint = True
     name = "Paint Bucket"
@@ -1620,17 +1619,15 @@ class GradientTool(Tool):
             draw_handle(p, b, True, self.drag == 1)
 
 
-# =================================================================== brush-like tools
+# --- Brush-like tools ---
 # smoothstep fall-off from the hard core to the brush edge
 _SOFT_STOPS = [(0.0, 1.0), (0.25, 0.844), (0.5, 0.5), (0.75, 0.156), (1.0, 0.0)]
 
 
 def stroke_line(p, a, b, w, hardness, color, antialias):
-    """Paint one stroke segment from a to b, w pixels wide, onto painter p.
-
-    Hardness 100 % is a plain round pen.  Below that the stroke is a row of round dabs
-    whose edges fade out; they are combined with Lighten so overlapping dabs don't
-    build up, which gives an even soft edge along the whole stroke."""
+    """Paint a segment from a to b, w px wide, onto painter p. At full hardness it's a plain
+    round pen; otherwise a row of soft dabs combined with Lighten so overlaps don't build up.
+    """
     if hardness >= 100:
         p.setRenderHint(QPainter.Antialiasing, antialias)
         p.setPen(QPen(color, w, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
@@ -1661,6 +1658,8 @@ def stroke_line(p, a, b, w, hardness, color, antialias):
         p.drawEllipse(c, r, r)
         if dist == 0:
             break
+
+
 class StrokeTool(Tool):
     options = ["brush_width", "hardness", "antialias"]
 
@@ -1766,8 +1765,7 @@ class EraserTool(StrokeTool):
 
 
 class MagicEraserTool(Tool):
-    """Click a colour to erase it to transparency, with the pixels around it that are similar,
-    like Photoshop's Magic Eraser (e.g. to remove a plain background in one click)."""
+    """Magic Eraser: erase the clicked colour, and similar pixels around it, to transparency."""
     records_colour = False
     name = "Magic Eraser"
     icon = "magic_eraser"
@@ -1925,9 +1923,7 @@ class RecolorTool(StrokeTool):
 
 
 class BlurTool(StrokeTool):
-    """Softens the picture where you paint, like Photoshop's Blur tool.  Within one stroke the
-    blur doesn't build up (going back over a spot does nothing more); paint another stroke over
-    it to blur it further."""
+    """Blur brush. A single stroke doesn't build up; a new stroke blurs further."""
     records_colour = False
     name = "Blur"
     icon = "blur"
@@ -1961,8 +1957,9 @@ class BlurTool(StrokeTool):
         return imaging.blur_image(src, self.radius)
 
     def processed(self, r):
-        """Region r of the processed picture.  The picture doesn't change during a stroke, so it
-        is worked out in tiles once and reused as the brush passes over the same spot again."""
+        """Region r of the processed image. The source doesn't change during a stroke, so tiles
+        are computed once and reused.
+        """
         d = self.stroke_doc
         T, m = self.TILE, self.margin
         out = QImage(r.size(), QImage.Format_ARGB32_Premultiplied)
@@ -1994,8 +1991,7 @@ class BlurTool(StrokeTool):
 
 
 class SharpenTool(BlurTool):
-    """Crisps up detail where you paint (unsharp mask), like Photoshop's Sharpen tool.  As with
-    Blur, one stroke doesn't build up; paint another stroke to sharpen further."""
+    """Sharpen brush (unsharp mask). Like Blur, a single stroke doesn't build up."""
     name = "Sharpen"
     icon = "sharpen"
     hint = "Drag over the picture to bring out detail; another stroke sharpens more. [ ] change size."
@@ -2017,9 +2013,9 @@ class SharpenTool(BlurTool):
 
 
 class SmudgeTool(StrokeTool):
-    """Picks up the colour under the brush and drags it along the stroke, like Photoshop's
-    Smudge tool.  Strength sets how far the colour carries before it fades out; Finger
-    painting starts each stroke with the primary colour instead."""
+    """Smudge brush. Strength sets how far colour is carried; Finger painting starts each stroke
+    with the primary colour.
+    """
     records_colour = False
     name = "Smudge"
     icon = "smudge"
@@ -2214,7 +2210,7 @@ class ColorPickerTool(Tool):
             self.app.select_tool("Pencil")
 
 
-# =================================================================== editable vector tools
+# --- Editable vector tools ---
 class EditableTool(Tool):
     """Base for tools whose result stays editable until finished."""
     snaps = True   # line, shape and text points snap to guides
@@ -2573,10 +2569,10 @@ class _ItemRender:
 
 
 class TextTool(EditableTool):
-    """Text: click to place, type, drag to move, drag the round handle above the box to
-    rotate.  Orientation can be horizontal, vertical (letters stacked), along an arc or on a
-    wave; letter and line spacing, an outline (secondary colour) and a drop shadow are under
-    "Spacing & Effects".  Finished text can be clicked again to edit, move or rotate it."""
+    """Text tool: click to place, type, drag to move, drag the top handle to rotate.
+    Supports horizontal, vertical, arc and wave layouts, spacing, outline and shadow.
+    Finished text can be clicked again to edit it.
+    """
     name = "Text"
     icon = "text"
     key = "T"
@@ -2604,7 +2600,7 @@ class TextTool(EditableTool):
     def wants_keys(self):
         return self.mine()
 
-    # ---------------------------------------------------------------- font and layout
+    # --- Font and layout ---
     def font(self):
         f = QFont(self.opt("font"))
         f.setPixelSize(max(1, int(self.opt("font_size"))))
@@ -2624,9 +2620,9 @@ class TextTool(EditableTool):
         return self.opt("font_size") * float(self.opt("letter_spacing")) / 100.0
 
     def layout(self):
-        """Where everything goes, in the text's own (unrotated) coordinates:
-        (runs, carets, rect).  runs: [(text, QPointF baseline start, angle)] to draw;
-        carets: per line, a list of (top, bottom) QPointF pairs, one per caret position."""
+        """Layout in the text's own unrotated coordinates: (runs, carets, rect).
+        runs: [(text, baseline start, angle)]; carets: per line, (top, bottom) pairs per caret position.
+        """
         f = self.font()
         fm = QFontMetricsF(f)
         mode = self.opt("text_dir")
@@ -2807,7 +2803,7 @@ class TextTool(EditableTool):
     def has_content(self):
         return any(l for l in self.lines)
 
-    # ---------------------------------------------------------------- re-editable text
+    # --- Re-editable text ---
     def _covered_rect(self, doc):
         poly = self.box_polygon(0)
         pad = max(4, int(self.opt("font_size") * 0.35)) + int(self.opt("text_outline")) + 2
@@ -2895,7 +2891,7 @@ class TextTool(EditableTool):
         self.drag = ("move", pos, QPointF(self.pos))
         self.moved = False
 
-    # ---------------------------------------------------------------- mouse
+    # --- Mouse ---
     def press(self, pos, button, mods, canvas):
         if button not in (Qt.LeftButton, Qt.RightButton):
             return
@@ -2970,7 +2966,7 @@ class TextTool(EditableTool):
                     best, where = dd, (i, c)
         return where
 
-    # ---------------------------------------------------------------- drawing
+    # --- Drawing ---
     def paint(self, p):
         f = self.font()
         runs, carets, rect, fm = self.layout()
@@ -3001,7 +2997,7 @@ class TextTool(EditableTool):
             p.strokePath(path, pen)
         p.fillPath(path, self.c)
 
-    # ---------------------------------------------------------------- keys
+    # --- Keys ---
     def key_press(self, e, canvas):
         if not self.mine():
             return False
@@ -3096,12 +3092,12 @@ class TextTool(EditableTool):
             p.setPen(QPen(QColor(255, 255, 255), 1)); p.drawLine(va, vb)
 
 
-# =================================================================== crop / remove / red eye
+# --- Crop / remove / red eye ---
 class CropTool(Tool):
-    """Photoshop-style Crop: a crop box (starting as the whole picture) with handles; drag
-    inside it to move it, drag the handles to resize it, drag outside it to draw a new one.
-    The area that will be cut off is shaded.  Enter or double-click crops, Esc cancels.
-    The box may reach outside the picture: the extra area becomes transparent."""
+    """Crop box with handles, starting as the whole picture. Drag inside to move, drag handles
+    to resize, drag outside for a new box. Enter or double-click crops, Esc cancels. Areas
+    outside the picture become transparent.
+    """
     name = "Crop"
     icon = "crop"
     key = "C"
@@ -3117,7 +3113,7 @@ class CropTool(Tool):
         self.edoc = None
         self.drag = None
 
-    # ---------------------------------------------------------------- state
+    # --- State ---
     def activate(self):
         d = self.doc
         if d is None:
@@ -3157,7 +3153,7 @@ class CropTool(Tool):
             return d.w / max(1, d.h)
         return r
 
-    # ---------------------------------------------------------------- geometry helpers
+    # --- Geometry helpers ---
     def _handles(self, canvas):
         r = self.rect
         pts = [r.topLeft(), QPointF(r.center().x(), r.top()), r.topRight(), QPointF(r.right(), r.center().y()),
@@ -3197,7 +3193,7 @@ class CropTool(Tool):
         sy = 1 if r.bottom() >= ay else -1
         return QRectF(QPointF(ax, ay), QPointF(ax + sx * w, ay + sy * h)).normalized()
 
-    # ---------------------------------------------------------------- input
+    # --- Input ---
     def press(self, pos, button, mods, canvas):
         if button != Qt.LeftButton:
             return
@@ -3305,7 +3301,7 @@ class CropTool(Tool):
             self.app.canvas.best_fit()
         self.activate()
 
-    # ---------------------------------------------------------------- display
+    # --- Display ---
     def cursor(self, pos, canvas):
         if pos is None or self.rect is None:
             return Qt.CrossCursor
@@ -3346,8 +3342,7 @@ class CropTool(Tool):
 
 
 class RemoveTool(StrokeTool):
-    """Photoshop-style Remove tool: paint over something you don't want (a blemish, a
-    passer-by, a wire) and when you let go it is filled in from its surroundings."""
+    """Remove tool: paint over something and on release it's filled from its surroundings."""
     records_colour = False
     name = "Remove"
     icon = "remove"
@@ -3419,11 +3414,10 @@ class RemoveTool(StrokeTool):
 
 
 class RedEyeTool(Tool):
-    """Red Eye: put the circle over a red pupil and click.  Only the red patch of the pupil
-    inside the circle is corrected (made dark and neutral); the catchlight, the iris, the
-    eyelids and the skin are left alone, even if the circle is a bit bigger than the pupil.
-    How red counts as "red eye" is worked out for each click, by comparing the inside of the
-    circle with the skin just round it, so it copes with pink skin and pinkish pupils."""
+    """Red Eye: click with the circle over a pupil. Only the red part of the pupil is changed,
+    so the catchlight, iris and skin are kept even if the circle is too big. The threshold
+    for 'red' is set per click by comparing with the skin around the circle.
+    """
     records_colour = False
     name = "Red Eye"
     icon = "red_eye"
@@ -3451,9 +3445,9 @@ class RedEyeTool(Tool):
 
     @staticmethod
     def find(a, cx, cy, R):
-        """Correction weights (0..1) for the red pupil in the circle, or None.
-        a: H x W x 4 float array (not premultiplied) of the area round the circle, with the
-        circle centre at (cx, cy) in its coordinates."""
+        """Correction weights (0..1) for the pupil, or None. a is an H x W x 4 straight-alpha
+        float array around the circle, centred at (cx, cy).
+        """
         rgb = a[..., :3]
         r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         red = (r - np.maximum(g, b)) / np.maximum(r, 1e-3)
@@ -3530,10 +3524,8 @@ class RedEyeTool(Tool):
         rgb = a[..., :3]
         r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         dk = self.opt("darken_amount") / 100.0
-        # red from the other two channels, the remaining cast taken out, then darkened
-        # Photoshop's correction (measured from its result on a real photo): red becomes the
-        # pixel's brightness, then all three channels are darkened by the same amount.  That
-        # gives a natural dark pupil that keeps its shading, with no pink or green cast.
+        # Red becomes the pixel's brightness, then all channels are darkened equally (matched
+        # against Photoshop's result). Keeps the pupil's shading with no pink or green cast.
         k = 1.0 - 0.6 * dk                       # 50 % darken -> x 0.70
         Y = 0.299 * r + 0.587 * g + 0.114 * b
         target = np.empty_like(rgb)
@@ -3586,7 +3578,7 @@ class RedEyeTool(Tool):
         p.drawLine(c + QPointF(-3, 0), c + QPointF(3, 0)); p.drawLine(c + QPointF(0, -3), c + QPointF(0, 3))
 
 
-# =================================================================== dodge / burn / sponge
+# --- Dodge / burn / sponge ---
 def _range_weight(x, tone_range):
     """How much a brightness x (0..1) belongs to the chosen tonal range."""
     if tone_range == "shadows":
@@ -3597,9 +3589,9 @@ def _range_weight(x, tone_range):
 
 
 def tone_curve(x, tone_range, exposure, lighten):
-    """Dodge (lighten=True) or burn curve for brightness values x (0..1), like Photoshop's:
-    the chosen range moves most, the other tones much less, black and white stay put
-    (except highlights/shadows, which push towards white/black as in Photoshop)."""
+    """Dodge (lighten=True) or burn curve for values x in 0..1. The chosen range moves most;
+    black and white stay fixed, except in the highlights/shadows ranges.
+    """
     e = float(exposure)
     if tone_range == "midtones":
         # strongest exactly on the middle greys, nothing at black or white
@@ -3616,8 +3608,7 @@ def tone_curve(x, tone_range, exposure, lighten):
 
 
 class ToneBrushTool(BlurTool):
-    """Common base: a brush that applies an adjustment where it paints.  One stroke doesn't
-    build up on itself; paint another stroke over it to strengthen the effect."""
+    """Base for brushes that apply an adjustment. A single stroke doesn't build up."""
     records_colour = False
     key = "D"
     flyout = "tone"

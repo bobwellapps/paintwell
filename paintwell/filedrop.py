@@ -1,9 +1,8 @@
-"""Files dropped onto Paintwell.
+"""Handling for files dropped on the window.
 
-Normally a drop carries plain file addresses (file:///home/…).  When Paintwell runs sealed off
-as a snap (or Flatpak), file managers such as Dolphin can instead hand the files over through
-the desktop's "file transfer" portal: the drop then carries a key, and the portal turns that
-key into paths Paintwell is allowed to read.  Both kinds are handled here."""
+Usually a drop carries file:// URLs. Inside a snap or Flatpak, Dolphin may send a
+document-portal key instead, which the FileTransfer portal turns into readable paths.
+"""
 import os
 import sys
 

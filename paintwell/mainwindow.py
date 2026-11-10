@@ -1,15 +1,15 @@
 """Main application window."""
 import os
 import math
-import sys
 import numpy as np
-from PySide6.QtCore import Qt, QObject, Signal, QSize, QTimer, QSettings, QRect, QRectF, QPointF, QPoint, QByteArray, QUrl, QEventLoop
-from PySide6.QtGui import (QAction, QActionGroup, QKeySequence, QIcon, QPainter, QColor, QImage, QPalette,
-                           QPainterPath, QTransform, QPixmap, QFont, QDesktopServices, QGuiApplication)
-from PySide6.QtWidgets import (QMainWindow, QWidget, QDockWidget, QToolBar, QTabBar, QStackedWidget, QLabel,
-                               QStatusBar, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox, QToolButton, QMenu, QFileDialog,
-                               QMessageBox, QInputDialog, QApplication, QVBoxLayout, QHBoxLayout, QFontComboBox,
-                               QSizePolicy, QStyleFactory, QSlider, QFrame, QScrollArea, QWidgetAction, QGridLayout, QColorDialog)
+from PySide6.QtCore import Qt, QObject, Signal, QSize, QTimer, QSettings, QRectF, QPointF, QEventLoop
+from PySide6.QtGui import (QAction, QActionGroup, QKeySequence, QIcon, QPainter, QColor, QImage,
+                           QPalette, QPainterPath, QTransform, QPixmap, QFont, QGuiApplication)
+from PySide6.QtWidgets import (QMainWindow, QWidget, QDockWidget, QToolBar, QTabBar, QStackedWidget,
+                               QLabel, QStatusBar, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
+                               QToolButton, QMenu, QMessageBox, QInputDialog, QApplication, QVBoxLayout,
+                               QHBoxLayout, QFontComboBox, QSizePolicy, QStyleFactory, QSlider, QFrame,
+                               QWidgetAction, QGridLayout, QColorDialog)
 
 from . import icons, icons_menu, imaging, fileio
 from .document import Document, Layer
@@ -18,12 +18,12 @@ from .tools import TOOL_CLASSES, SHAPES, MoveTool
 from .panels import NavigatorPanel, ColorState, ColorsPanel, FitScrollArea, ToolsPanel, LayersPanel, HistoryPanel, thumb
 from .effects import Source, ADJUSTMENTS, EFFECTS
 from . import filedialogs
-from .dialogs import (SplitImageDialog, NewImageDialog, ResizeDialog, CanvasSizeDialog, LayerPropertiesDialog, EffectDialog,
-                      CurvesDialog, LevelsDialog, SliderSpin)
+from .dialogs import (SplitImageDialog, NewImageDialog, ResizeDialog, CanvasSizeDialog,
+                      LayerPropertiesDialog, EffectDialog, CurvesDialog, LevelsDialog)
 
 APP_NAME = "Paintwell"
 LAYOUT_VERSION = 7  # bump to discard saved panel layouts after layout changes
-VERSION = "1.2"
+VERSION = "1.3"
 
 DEFAULT_OPTS = {
     "brush_width": 6, "hardness": 100, "blur_strength": 50, "sharpen_strength": 50,
@@ -53,8 +53,9 @@ class EmptyPage(QWidget):
 
 
 class PreviewWorker(QObject):
-    """Runs render(params) on one background thread. New requests replace any waiting one, so a
-    quickly dragged slider only ever costs one render at a time. Results come back on the GUI thread."""
+    """Runs render(params) on a background thread. A new request replaces any waiting one, so
+    dragging a slider only queues one render. Results arrive on the GUI thread.
+    """
     ready = Signal(object, object)
     failed = Signal(object, object)
     busy = Signal(bool)
@@ -254,7 +255,7 @@ class MainWindow(QMainWindow):
         for f in files:
             self.open_path(f)
 
-    # =============================================================== properties
+    # --- Properties ---
     @property
     def doc(self):
         return self.docs[self.current][0] if 0 <= self.current < len(self.docs) else None
@@ -263,7 +264,7 @@ class MainWindow(QMainWindow):
     def canvas(self):
         return self.docs[self.current][1] if 0 <= self.current < len(self.docs) else None
 
-    # =============================================================== settings
+    # --- Settings ---
     def _load_opts(self):
         s = self.settings
         for k, v in DEFAULT_OPTS.items():
@@ -299,6 +300,7 @@ class MainWindow(QMainWindow):
             self.restoreGeometry(g)
         else:
             self.resize(1280, 820)
+        QTimer.singleShot(3000, icons.save_cache)    # once startup is over
         st = self.settings.value("windowState")
         if not (st and self.restoreState(st, LAYOUT_VERSION)):
             # first run (or layout changed): size the docks once the window is on screen
@@ -308,7 +310,7 @@ class MainWindow(QMainWindow):
         self.act["show_guides"].setChecked(self.settings.value("show_guides", "true") in ("true", True))
         self.act["snap_guides"].setChecked(self.settings.value("snap_guides", "true") in ("true", True))
 
-    # =============================================================== actions
+    # --- Actions ---
     def _a(self, name, text, shortcut=None, icon=None, checkable=False, slot=None, tip=None):
         a = QAction(text, self)
         if shortcut:
@@ -620,7 +622,7 @@ class MainWindow(QMainWindow):
         sb.addPermanentWidget(self.zoom_combo)
         sb.addPermanentWidget(zi)
 
-    # =============================================================== theme
+    # --- Theme ---
     def set_theme(self, key):
         self.settings.setValue("theme", key)
         apply_theme(QApplication.instance(), key)
@@ -629,7 +631,7 @@ class MainWindow(QMainWindow):
         self.history_panel.rebuild()
         self.status_message("Theme changed. Icons will match the new theme next time Paintwell starts.")
 
-    # =============================================================== tools
+    # --- Tools ---
     def select_tool(self, name):
         t = self.tool_by_name.get(name) or self.tool_by_name["Paintbrush"]
         if t is self.tool:
@@ -691,7 +693,7 @@ class MainWindow(QMainWindow):
             size = d.selection.boundingRect().size()
         self.sel_label.setText(f"⬚ {round(size.width())} × {round(size.height())}")
 
-    # =============================================================== option bar
+    # --- Option bar ---
     def set_option(self, key, value):
         self.opts[key] = value
         self.settings.setValue("opt/" + key, value)
@@ -972,6 +974,7 @@ class MainWindow(QMainWindow):
                     sp._set = lambda v, sp=sp: (sp.blockSignals(True), sp.setValue(int(v)), sp.blockSignals(False))
                     g.addWidget(sp, row, 1)
                     self.opt_widgets[k] = sp
+
                 def note(row, text):
                     n = QLabel(text)
                     n.setStyleSheet("color: palette(mid); font-size: 11px;")
@@ -1053,8 +1056,7 @@ class MainWindow(QMainWindow):
                   "text_outline_color": "#000000", "text_shadow": False}
 
     def paint_layer_for(self, tool, button):
-        """Drawing with a brush, line, shape, fill... while a text layer is selected: start a new
-        layer above it for the drawing, so the text stays editable (as in Krita)."""
+        """When painting on a text layer, add a new layer above it so the text stays editable."""
         d = self.doc
         if d is None or not getattr(tool, "adds_paint", False):
             return
@@ -1075,7 +1077,7 @@ class MainWindow(QMainWindow):
         (st.add if on else st.discard)(flag)
         self.set_option("font_style", ",".join(sorted(st)))
 
-    # =============================================================== documents
+    # --- Documents ---
     def add_document(self, doc):
         canvas = Canvas(doc, self)
         canvas.show_grid = self.act["pixel_grid"].isChecked()
@@ -1193,7 +1195,7 @@ class MainWindow(QMainWindow):
         else:
             self.pos_label.setText(f"⌖ {int(np.floor(ip.x()))}, {int(np.floor(ip.y()))}")
 
-    # =============================================================== file
+    # --- File ---
     def do_new(self):
         cb = QApplication.clipboard().image()
         w, h = (cb.width(), cb.height()) if not cb.isNull() else (int(self.settings.value("new_w", 800)), int(self.settings.value("new_h", 600)))
@@ -1410,7 +1412,7 @@ class MainWindow(QMainWindow):
                         "other disks, allow it once with:\n    sudo snap connect paintwell:removable-media")
             QMessageBox.warning(self, APP_NAME, "Paintwell isn't allowed to read:\n" + names + hint)
 
-    # =============================================================== edit
+    # --- Edit ---
     def do_undo(self):
         if self.tool and self.tool.is_editing():
             self.tool.cancel()
@@ -1569,12 +1571,12 @@ class MainWindow(QMainWindow):
         self.fill_from_surroundings(d.selection, "Content-Aware Fill", "magic_wand")
 
     def fill_from_surroundings(self, sel, title, icon, grow=2, piece=None):
-        """Fill the area inside path sel on the current layer with texture rebuilt from the
-        surrounding picture (Content-Aware Fill, also used by the Remove tool).
+        """Fill the selection on the current layer from the surrounding picture (Content-Aware
+        Fill, also used by Remove).
 
-        piece: if given, the area is filled a piece (piece x piece pixels) at a time, each from
-        its own nearby surroundings only.  Used for Remove strokes, so a long stroke crossing
-        different things (sky, then the sun...) fills each part from what is next to it."""
+        With `piece`, the area is filled piece x piece pixels at a time from nearby pixels only,
+        so a long Remove stroke over different backgrounds matches each part.
+        """
         d = self.doc
         import threading
         from PySide6.QtWidgets import QProgressDialog
@@ -1686,7 +1688,7 @@ class MainWindow(QMainWindow):
             d.set_selection(full.subtracted(d.selection))
         d.commit("Invert Selection", "select_all")
 
-    # =============================================================== view
+    # --- View ---
     def do_zoom_in(self):
         if self.canvas:
             self.canvas.zoom_in()
@@ -1707,7 +1709,7 @@ class MainWindow(QMainWindow):
         if self.canvas and self.doc:
             self.canvas.zoom_to_rect(QRectF(self.doc.selection_bounds()))
 
-    # ------------------------------------------------------------ rulers and guides
+    # --- Rulers and guides ---
     def _toggle_rulers(self, on):
         self.settings.setValue("rulers", on)
         for d, c in self.docs:
@@ -1797,7 +1799,7 @@ class MainWindow(QMainWindow):
         self.set_option("brush_width", min(2000, w + max(1, int(w * 0.15))))
         self.canvas_update()
 
-    # =============================================================== image
+    # --- Image ---
     def do_crop(self):
         d = self.doc
         if not d or d.selection is None:
@@ -1986,7 +1988,7 @@ class MainWindow(QMainWindow):
             d.flatten()
             d.commit("Flatten", "flatten")
 
-    # =============================================================== layers
+    # --- Layers ---
     def do_add_layer(self):
         d = self.doc
         if d:
@@ -2110,7 +2112,7 @@ class MainWindow(QMainWindow):
         else:
             d.revert()
 
-    # =============================================================== adjustments & effects
+    # --- Adjustments & effects ---
     def _histogram(self, arr):
         a = arr[..., 3] > 0
         if not a.any():
@@ -2234,9 +2236,9 @@ class MainWindow(QMainWindow):
         self.status_message("")
 
     def _run_growing_effect(self, eff, icon, params):
-        """Effects that may add room outside the picture (borders, frames, drop shadow).
-        Each preview starts again from the last saved state, grows the canvas if asked, then
-        paints on the whole active layer."""
+        """Effects that may enlarge the canvas (borders, frames, drop shadow). Each preview starts
+        from the last saved state, grows the canvas if needed, then renders the whole layer.
+        """
         d = self.doc
         ctx = {"primary": QColor(self.colors.primary), "secondary": QColor(self.colors.secondary)}
         state = {"last": None, "size": (d.w, d.h)}
@@ -2307,7 +2309,7 @@ class MainWindow(QMainWindow):
             eff, icon, p = self.last_effect
             self.run_effect(eff, icon, p)
 
-    # =============================================================== help
+    # --- Help ---
     def do_about(self):
         from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFrame
         dlg = QDialog(self)
@@ -2415,7 +2417,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Keyboard Shortcuts", html)
 
 
-# =================================================================== theme
+# --- Theme ---
 def apply_theme(app, key):
     app.setStyle(QStyleFactory.create("Fusion"))
     dark = key == "dark"
