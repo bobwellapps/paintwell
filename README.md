@@ -1,4 +1,5 @@
-<p align="center"><img src="docs/images/banner.png" alt="Paintwell" width="100%"></p>
+
+<p align="center"><img width="1920" height="640" alt="paintwell-banner-1920x640" src="https://github.com/user-attachments/assets/77c63eec-a6e2-4ed7-8a53-49640e924155" /></p>
 
 # Paintwell
 
@@ -13,39 +14,6 @@ adjustments and 50+ effects, all in a clean, familiar layout.
   <img  width="32%" alt="example3" src="https://github.com/user-attachments/assets/48e4ccc3-8403-4e9f-9bae-7a944e090e79" />
     <img  width="32%" alt="example4" src="https://github.com/user-attachments/assets/bfaef104-5cc4-4258-a400-644aaea49f3c" />
 </p>
-
-## Install
-
-**Snap Store** (recommended: updates itself)
-
-```
-sudo snap install paintwell
-```
-
-For USB drives and USB scanners, allow access once:
-
-```
-sudo snap connect paintwell:removable-media
-sudo snap connect paintwell:raw-usb
-```
-
-**AppImage**: download `Paintwell-x86_64.AppImage` from the
-[Releases](https://github.com/bobwellapps/paintwell/releases) page, then:
-
-```
-chmod +x Paintwell-x86_64.AppImage
-./Paintwell-x86_64.AppImage
-```
-
-It needs a 64-bit distro from about 2021 or newer (glibc 2.34+). If it won't start, install
-FUSE (`sudo apt install libfuse2`). To add it to your menu, use Gear Lever or AppImageLauncher.
-
-**From source** (Python 3.10+):
-
-```
-pip install PySide6-Essentials numpy
-python3 -m paintwell
-```
 
 ## Features
 
@@ -87,6 +55,39 @@ with the Clone Stamp.
 - Print with a preview and size options, and scan straight into Paintwell, including from
   network printer-scanners without extra drivers.
 - Opens and saves PNG, JPEG, BMP, WebP, TIFF, GIF and more, plus layered OpenRaster.
+
+## Install
+
+**Snap Store** (recommended: updates itself)
+
+```
+sudo snap install paintwell
+```
+
+For USB drives and USB scanners, allow access once:
+
+```
+sudo snap connect paintwell:removable-media
+sudo snap connect paintwell:raw-usb
+```
+
+**AppImage**: download `Paintwell-x86_64.AppImage` from the
+[Releases](https://github.com/bobwellapps/paintwell/releases) page, then:
+
+```
+chmod +x Paintwell-x86_64.AppImage
+./Paintwell-x86_64.AppImage
+```
+
+It needs a 64-bit distro from about 2021 or newer (glibc 2.34+). If it won't start, install
+FUSE (`sudo apt install libfuse2`). To add it to your menu, use Gear Lever or AppImageLauncher.
+
+**From source** (Python 3.10+):
+
+```
+pip install PySide6-Essentials numpy
+python3 -m paintwell
+```
 
 
 ## Reporting problems
