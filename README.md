@@ -40,6 +40,7 @@ with the Clone Stamp.
 **Adjustments and 50+ effects**
 - Adjustments: Levels, Curves, Hue / Saturation, Brightness / Contrast, Auto-Level, Black and
   White, Sepia, Posterise and Invert.
+- Align Object moves a shape, logo or cut-out to the centre, or to any edge or corner, of the picture or selection in one click. Feather Object softens its edges.
 - Artistic, Photo, Blurs, Distort, Noise and Stylise effects, all with live preview.
 - Frames and borders: picture frames (moulded, wood, gold, silver and more, with a mount),
   drop shadows, rounded corners, and soft or rough edges.
