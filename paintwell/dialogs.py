@@ -19,6 +19,29 @@ def buttons(dlg, reset=None):
     return bb
 
 
+def live_schedule(dlg):
+    """Update the preview straight away when a setting changes, then again every so often
+    while it keeps changing (a slider being dragged), so the picture follows the slider.
+    Previews that are worked out in the background return at once. One that keeps the window
+    busy for a while instead waits until the slider stops, so the slider doesn't stick."""
+    dlg._dirty = True
+    if getattr(dlg, "_slow", False):
+        dlg.timer.start(150)
+    elif not dlg.timer.isActive():
+        live_tick(dlg)
+
+
+def live_tick(dlg):
+    import time
+    if getattr(dlg, "_dirty", False):
+        dlg._dirty = False
+        t = time.perf_counter()
+        dlg._run()
+        took = time.perf_counter() - t
+        dlg._slow = took > 0.15
+        if not dlg._slow:
+            dlg.timer.start(max(40, int(took * 1500)))     # leave the window time to keep up
+
 class SliderSpin(QWidget):
     valueChanged = Signal(object)
 
@@ -118,7 +141,7 @@ class EffectDialog(QDialog):
         lay.addWidget(buttons(self, self.reset))
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self._run)
+        self.timer.timeout.connect(lambda: live_tick(self))
         self.setMinimumWidth(360)
         QTimer.singleShot(0, self._run)
 
@@ -150,7 +173,7 @@ class EffectDialog(QDialog):
         return out
 
     def schedule(self, *_):
-        self.timer.start(70)
+        live_schedule(self)
 
     def _run(self):
         QApplication = __import__("PySide6.QtWidgets", fromlist=["QApplication"]).QApplication
@@ -301,7 +324,7 @@ class CurvesDialog(QDialog):
         lay.addWidget(buttons(self, self.reset))
         self.mode.currentTextChanged.connect(self._mode)
         self.curve.changed.connect(self.schedule)
-        self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(self._run)
+        self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(lambda: live_tick(self))
         self._mode(self.mode.currentText())
 
     def _toggle(self, k, v):
@@ -324,7 +347,7 @@ class CurvesDialog(QDialog):
         return {"mode": self.curve.mode, "points": {k: list(v) for k, v in self.curve.points.items()}}
 
     def schedule(self):
-        self.timer.start(60)
+        live_schedule(self)
 
     def _run(self):
         self.preview_fn(self.values())
@@ -385,7 +408,7 @@ class LevelsDialog(QDialog):
         for w in (self.in_lo, self.in_hi, self.out_lo, self.out_hi):
             w.valueChanged.connect(self.schedule)
         self.gamma.valueChanged.connect(self.schedule)
-        self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(self._run)
+        self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.timeout.connect(lambda: live_tick(self))
 
     def auto(self):
         if self.auto_values:
@@ -404,7 +427,7 @@ class LevelsDialog(QDialog):
         return v
 
     def schedule(self, *_):
-        self.timer.start(60)
+        live_schedule(self)
 
     def _run(self):
         self.preview_fn(self.values())

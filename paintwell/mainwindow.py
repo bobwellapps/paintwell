@@ -16,14 +16,14 @@ from .document import Document, Layer
 from .canvas import Canvas, ZOOM_LEVELS
 from .tools import TOOL_CLASSES, SHAPES, MoveTool
 from .panels import NavigatorPanel, ColorState, ColorsPanel, FitScrollArea, ToolsPanel, LayersPanel, HistoryPanel, thumb
-from .effects import Source, ADJUSTMENTS, EFFECTS
+from .effects import Source, ADJUSTMENTS, EFFECTS, NO_DRAFT, render_draft
 from . import filedialogs
 from .dialogs import (SplitImageDialog, NewImageDialog, ResizeDialog, CanvasSizeDialog,
                       LayerPropertiesDialog, EffectDialog, CurvesDialog, LevelsDialog)
 
 APP_NAME = "Paintwell"
 LAYOUT_VERSION = 7  # bump to discard saved panel layouts after layout changes
-VERSION = "1.3"
+VERSION = "1.4"
 
 DEFAULT_OPTS = {
     "brush_width": 6, "hardness": 100, "blur_strength": 50, "sharpen_strength": 50,
@@ -53,77 +53,163 @@ class EmptyPage(QWidget):
 
 
 class PreviewWorker(QObject):
-    """Runs render(params) on a background thread. A new request replaces any waiting one, so
-    dragging a slider only queues one render. Results arrive on the GUI thread.
+    """Works out effect previews on background threads; results arrive on the GUI thread.
+
+    On a big picture a slow effect could take seconds per preview, so each new setting is
+    first worked out on a smaller copy (draft(params, f)) and shown straight away, then at full
+    size. Drafts and full-size renders run on separate threads, so a full-size render that is
+    still busy never holds up the drafts while a slider moves; only the newest settings'
+    full-size result is ever shown.
     """
     ready = Signal(object, object)
+    drafted = Signal(object, object)
     failed = Signal(object, object)
     busy = Signal(bool)
-    _finished = Signal(object, object, object)
+    _finished = Signal(object, object, object, object, bool)
 
-    def __init__(self, render, parent=None):
+    DRAFT_SECONDS = 0.08       # aim for drafts this quick
+    QUICK_ENOUGH = 0.15        # full renders quicker than this don't need a draft
+    MIN_DRAFT_PIXELS = 150_000
+
+    def __init__(self, render, parent=None, draft=None, pixels=0):
         super().__init__(parent)
         from concurrent.futures import ThreadPoolExecutor
         self.render = render
-        self.pool = ThreadPoolExecutor(1, thread_name_prefix="preview")
-        self.pending = None
-        self.future = None
+        self.draft = draft
+        self.pixels = max(1, pixels)
+        self.draft_pool = ThreadPoolExecutor(1, thread_name_prefix="preview-draft")
+        self.full_pool = ThreadPoolExecutor(1, thread_name_prefix="preview")
+        self.seq = 0                   # number of the newest request
+        self.latest = None
+        self.pending_draft = None      # (seq, params) waiting for the draft thread
+        self.pending_full = None       # (seq, params) waiting for the full-size thread
+        self.draft_future = None
+        self.full_future = None
         self.stop = None
+        self.shown = 0                 # seq of the last result shown
+        self.closed = False
+        self.full_rate = None          # seconds per pixel, measured
+        self.draft_rate = None
         self._finished.connect(self._on_finished)
 
     def request(self, params):
-        self.pending = (params,)
-        if self.future is None:
-            self._start()
+        self.seq += 1
+        self.latest = params
+        job = (self.seq, params)
+        if self._draft_factor():
+            if self.full_future is not None:
+                self.stop.set()        # its result would be out of date: give up if it can
+            self.pending_draft = job
+            if self.draft_future is None:
+                self._start_draft()
         else:
-            self.stop.set()          # tell the running render to give up at its next band
+            self._want_full(job)
 
-    def _start(self):
+    def _draft_factor(self):
+        """How many times smaller the draft should be, or 0 for no draft."""
+        n = self.pixels
+        if self.draft is None or n < 2 * self.MIN_DRAFT_PIXELS:
+            return 0
+        if self.full_rate is not None and self.full_rate * n < self.QUICK_ENOUGH:
+            return 0
+        rate = self.draft_rate or self.full_rate
+        f = math.sqrt(n * rate / self.DRAFT_SECONDS) if rate else math.sqrt(n / 300_000)
+        f = min(f, math.sqrt(n / self.MIN_DRAFT_PIXELS))
+        return f if f >= 1.4 else 0
+
+    def _start_draft(self):
+        import time
+        seq, p = self.pending_draft
+        self.pending_draft = None
+        f = self._draft_factor()
+        if not f:
+            self._want_full((seq, p))
+            return
+        self.busy.emit(True)
+
+        def job():
+            t = time.perf_counter()
+            try:
+                img = self.draft(p, f)
+                self.draft_rate = (time.perf_counter() - t) / (self.pixels / (f * f))
+                self._finished.emit(seq, p, img, None, True)
+            except Exception as ex:      # reported on the GUI thread
+                self._finished.emit(seq, p, None, ex, True)
+        self.draft_future = self.draft_pool.submit(job)
+
+    def _want_full(self, job):
+        self.pending_full = job
+        if self.full_future is None:
+            self._start_full()
+
+    def _start_full(self):
         import threading
+        import time
         from .effects import Cancelled
-        (p,) = self.pending
-        self.pending = None
+        seq, p = self.pending_full
+        self.pending_full = None
         self.busy.emit(True)
         stop = self.stop = threading.Event()
 
         def job():
+            t = time.perf_counter()
             try:
-                self._finished.emit(p, self.render(p, stop.is_set), None)
+                img = self.render(p, stop.is_set)
+                self.full_rate = (time.perf_counter() - t) / self.pixels
+                self._finished.emit(seq, p, img, None, False)
             except Cancelled:
-                self._finished.emit(p, None, "cancelled")
+                self._finished.emit(seq, p, None, "cancelled", False)
             except Exception as ex:      # reported on the GUI thread
-                self._finished.emit(p, None, ex)
-        self.future = self.pool.submit(job)
+                self._finished.emit(seq, p, None, ex, False)
+        self.full_future = self.full_pool.submit(job)
 
-    def _on_finished(self, p, img, ex):
-        self.future = None
-        if ex == "cancelled":
-            if self.pending is not None:
-                self._start()
-            else:
-                self.busy.emit(False)
-            return
-        if ex is not None:
-            self.pending = None
-            self.busy.emit(False)
-            self.failed.emit(p, ex)
-            return
-        if self.pending is None:
-            self.busy.emit(False)
-            self.ready.emit(p, img)
+    def _on_finished(self, seq, p, img, ex, was_draft):
+        if was_draft:
+            self.draft_future = None
         else:
-            self._start()        # settings changed meanwhile: skip this result, do the newest
+            self.full_future = None
+        if self.closed:
+            return
+        if was_draft:
+            if ex is not None:
+                self.draft = None                            # drafts don't work here: full size only
+                if self.pending_draft is not None:
+                    seq, p = self.pending_draft
+                    self.pending_draft = None
+                self._want_full((seq, p))
+            else:
+                if seq > self.shown:
+                    self.shown = seq
+                    self.drafted.emit(p, img)
+                if self.pending_draft is not None:
+                    self._start_draft()                      # settings moved on: draft the newest
+                else:
+                    self._want_full((seq, p))                # now the real thing
+        elif ex is None and seq >= self.shown:
+            # without drafts, an out-of-date result is still shown: it's the newest there is
+            self.shown = seq
+            self.ready.emit(p, img)
+        elif ex is not None and ex != "cancelled" and seq == self.seq:
+            self.pending_draft = self.pending_full = None
+            self.failed.emit(p, ex)
+        if self.full_future is None and self.pending_full is not None:
+            self._start_full()
+        if self.draft_future is None and self.full_future is None:
+            self.busy.emit(False)
 
     def wait(self):
         """Stop whatever is running (used before applying for real or cancelling)."""
-        self.pending = None
-        if self.future is not None:
+        self.pending_draft = self.pending_full = None
+        self.closed = True
+        if self.stop is not None:
             self.stop.set()
-            try:
-                self.future.result()
-            except Exception:
-                pass
-            QApplication.processEvents()   # deliver its queued result
+        for fut in (self.draft_future, self.full_future):
+            if fut is not None:
+                try:
+                    fut.result()
+                except Exception:
+                    pass
+        QApplication.processEvents()   # deliver any queued results (they're ignored now)
         self.busy.emit(False)
 
 
@@ -2144,17 +2230,17 @@ class MainWindow(QMainWindow):
             ctx["mask"] = (np.frombuffer(ptr, np.uint8).reshape(r.height(), mimg.bytesPerLine())[:, :r.width()] > 127).copy()
         state = {"last": None}
 
-        def apply(p, img):
-            final = base.copy()
-            q = QPainter(final)
+        def apply(p, img, final=True):
+            out = base.copy()
+            q = QPainter(out)
             if sel is not None:
                 q.setClipPath(sel)
             q.setCompositionMode(QPainter.CompositionMode_Source)
             q.drawImage(r.topLeft(), img)
             q.end()
-            d.layer.image = final
+            d.layer.image = out
             d.invalidate(r)
-            state["last"] = repr(p)
+            state["last"] = repr(p) if final else None
 
         def failed(ex):
             if state.get("error"):
@@ -2165,8 +2251,13 @@ class MainWindow(QMainWindow):
 
         # previews are worked out on a background thread so the window stays responsive while
         # you drag a slider; only the newest settings are ever drawn
-        worker = PreviewWorker(lambda p, cancelled: eff.render(src, p, dict(ctx, cancelled=cancelled)), self)
+        worker = PreviewWorker(lambda p, cancelled: eff.render(src, p, dict(ctx, cancelled=cancelled)), self,
+                               draft=(None if eff.name in NO_DRAFT
+                                      else lambda p, f: render_draft(eff, src.img, p, ctx, f)),
+                               pixels=r.width() * r.height())
         worker.ready.connect(lambda p, img: (None if state.get("error") or state.get("closed") else apply(p, img)))
+        worker.drafted.connect(lambda p, img: (None if state.get("error") or state.get("closed")
+                                               else apply(p, img, final=False)))
         worker.failed.connect(lambda p, ex: None if state.get("closed") else failed(ex))
         worker.busy.connect(lambda on: self.status_message("Working out the preview..." if on else ""))
 

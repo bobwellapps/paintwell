@@ -378,6 +378,7 @@ def zoom_blur(a, p, ctx):
     rx, ry = xs - cx, ys - cy
     acc = np.zeros_like(a)
     for i in range(n):
+        _check(ctx)
         s = 1 - amt * i / (n - 1)
         acc += _nearest(a, cx + rx * s, cy + ry * s)
     return acc / n
@@ -392,6 +393,7 @@ def radial_blur(a, p, ctx):
     rx, ry = xs - cx, ys - cy
     acc = np.zeros_like(a)
     for i in range(n):
+        _check(ctx)
         t = (i / (n - 1) - 0.5) * ang
         c, s = math.cos(t), math.sin(t)
         acc += _nearest(a, cx + rx * c - ry * s, cy + rx * s + ry * c)
@@ -437,6 +439,7 @@ def median(a, p, ctx):
     out = np.empty_like(a8)
     rows = max(1, int(60_000_000 / max(1, k * w * 4)))
     for y0 in range(0, h, rows):
+        _check(ctx)
         y1 = min(h, y0 + rows)
         stack = np.empty((k, y1 - y0, w, 4), np.uint8)
         i = 0
@@ -609,6 +612,7 @@ def oil_painting(a, p, ctx):
     best = np.full(y.shape, -1.0, np.float32)
     out = u.copy()
     for lv in range(levels):
+        _check(ctx)
         ind = (q == lv).astype(np.float32)[..., None]
         if not ind.any():
             continue
@@ -1257,3 +1261,53 @@ EFFECTS = [
         Effect("Relief", relief, [("angle", "Angle", "angle", 45, -180, 180)], halo=lambda p: 2, premult=True),
     ]),
 ]
+
+
+# --- Quick drafts while a slider moves ---
+# A big picture can take seconds to process, so while the settings are changing the preview
+# is worked out on a smaller copy first, then redone at full size. Settings measured in
+# pixels have to shrink with the copy, or a 10 px blur on a third-size copy would look like
+# a 30 px one.
+DRAFT_PX = {
+    "Oil Painting": ("brush",), "Halftone": ("size",), "Pencil Sketch": ("tip",),
+    "Fragment": ("distance",), "Gaussian Blur": ("radius",), "Motion Blur": ("distance",),
+    "Unfocus": ("radius",), "Rounded Corners": ("radius",), "Soft Edge": ("width",),
+    "Rough Edge": ("width",), "Frosted Glass": ("amount",), "Pixelate": ("size",),
+    "Tile Reflection": ("tile_size",), "Median": ("radius",), "Reduce Noise": ("radius",),
+    "Feather Object": ("radius",), "Glow": ("radius",), "Outline": ("thickness",),
+    "Clouds": ("scale",), "Difference Clouds": ("scale",), "Plasma": ("scale",),
+    "Textures": ("scale",), "Fibres": ("variance",),
+}
+
+
+# effects whose look depends on the exact pixel size (fine grain, one-pixel edges): a draft
+# would look different from the result, so these always preview at full size
+NO_DRAFT = {"Ink Sketch", "Edge Detect", "Emboss", "Relief", "Add Noise"}
+
+
+def draft_params(eff, p, f):
+    """p for a copy f times smaller."""
+    q = dict(p)
+    for spec in eff.params:
+        key = spec[0]
+        if key in DRAFT_PX.get(eff.name, ()) and key in q:
+            v = q[key] / f
+            if spec[2] in ("int", "angle"):
+                v = int(round(v))
+            q[key] = max(spec[4], v)
+    return q
+
+
+def render_draft(eff, img, p, ctx, f):
+    """Render eff on a copy of img f times smaller, scaled back up to img's size."""
+    w, h = img.width(), img.height()
+    dw, dh = max(1, round(w / f)), max(1, round(h / f))
+    small = img.scaled(dw, dh, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    c = dict(ctx)
+    if c.get("mask") is not None:
+        m = c["mask"]
+        ys = np.minimum((np.arange(dh) * h / dh).astype(int), h - 1)
+        xs = np.minimum((np.arange(dw) * w / dw).astype(int), w - 1)
+        c["mask"] = np.ascontiguousarray(m[ys][:, xs])
+    out = eff.render(Source(small), draft_params(eff, p, w / dw), c)
+    return out.scaled(w, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)

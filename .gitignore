@@ -23,8 +23,9 @@ prime/
 *.swp
 .directory
 
-# snap packaging: kept on this computer, not uploaded to GitHub
+# snap packaging and the upload script: kept on this computer, not uploaded to GitHub
 snap/
 snap-tools/
 SNAP-RELEASE.md
 STORE-LISTING.txt
+publish-to-github.sh

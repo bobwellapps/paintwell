@@ -960,27 +960,9 @@ def _logo():
         from PySide6.QtGui import QImage
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "paintwell_icon.png")
         img = QImage(path)
-        _LOGO = _on_tile(img.convertToFormat(QImage.Format_ARGB32_Premultiplied)) if not img.isNull() else False
+        # the picture is already cut out on a clear background, so it's used as it is
+        _LOGO = img.convertToFormat(QImage.Format_ARGB32_Premultiplied) if not img.isNull() else False
     return _LOGO
-
-
-def _on_tile(art, size=1024):
-    """The logo picture (which has its own parchment background) as a rounded-square tile
-    with a thin edge, like most desktop app icons."""
-    from PySide6.QtGui import QImage
-    img = QImage(size, size, QImage.Format_ARGB32_Premultiplied)
-    img.fill(Qt.transparent)
-    p = QPainter(img)
-    p.setRenderHint(QPainter.Antialiasing); p.setRenderHint(QPainter.SmoothPixmapTransform)
-    m = size * 0.03
-    tile = QRectF(m, m, size - 2 * m, size - 2 * m)
-    path = QPainterPath(); path.addRoundedRect(tile, size * 0.2, size * 0.2)
-    p.setClipPath(path)
-    p.drawImage(tile, art)
-    p.setClipping(False)
-    p.setPen(QPen(QColor(110, 78, 46, 200), size * 0.01)); p.setBrush(Qt.NoBrush); p.drawPath(path)
-    p.end()
-    return img
 
 
 def _logo_scaled(px):
