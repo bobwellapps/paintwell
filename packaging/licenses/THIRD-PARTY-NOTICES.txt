@@ -1,0 +1,43 @@
+Paintwell - third-party software notices
+=========================================
+
+Paintwell
+Copyright (C) 2026 bobwellapps
+
+Paintwell is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version (GPL-3.0.txt). It is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for details.
+
+The Paintwell name and icon are not covered by this licence and may not be used
+for other projects, including modified versions (forks).
+
+Paintwell also includes the following third-party software, used under
+their own licences (full texts are in this folder):
+
+* Qt 6 and Qt for Python (PySide6, Shiboken6) 6.12
+  (c) The Qt Company Ltd and other contributors.
+  Licensed under the GNU Lesser General Public License v3 (LGPL-3.0.txt,
+  which builds on GPL-3.0.txt). The Qt libraries are included unmodified as
+  separate shared libraries; you may replace them with your own builds.
+  Source code: https://download.qt.io/official_releases/QtForPython/
+               https://code.qt.io/  (Qt 6.12)
+
+* Python 3.12 - Python Software Foundation License (Python-LICENSE.txt).
+  https://www.python.org/
+
+* NumPy 2.5 - BSD 3-Clause licence (NumPy-LICENSE.txt), which also covers its
+  bundled OpenBLAS (BSD) and libgfortran/libquadmath (GPL-3.0 with the GCC
+  Runtime Library Exception). https://numpy.org/
+
+* X11/XCB helper libraries (libxcb-cursor, -icccm, -image, -keysyms,
+  -render-util, libXrender) - MIT/X11 licence. https://xcb.freedesktop.org/
+
+* Libraries used by the Python runtime:
+  OpenSSL 3 (Apache-2.0.txt); libxcrypt and libnsl (LGPL-2.1.txt);
+  libffi (MIT); bzip2 (BSD-style); xz/liblzma (0BSD / public domain);
+  SQLite (public domain).
+
+* The AppImage runtime - MIT licence. https://github.com/AppImage
