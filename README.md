@@ -1,5 +1,4 @@
-
-<p align="center"><img width="1920" height="640" alt="paintwell-banner-1920x640" src="https://github.com/user-attachments/assets/77c63eec-a6e2-4ed7-8a53-49640e924155" /></p>
+<p align="center"><img src="docs/images/banner.png" alt="Paintwell" width="100%"></p>
 
 # Paintwell
 
@@ -10,52 +9,10 @@ adjustments and 50+ effects, all in a clean, familiar layout.
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/paintwell)
 
 <p align="center">
-<img  width="32%" alt="example1" src="https://github.com/user-attachments/assets/e1e81694-a212-4fd8-b2bb-249c54c0443b" />
-  <img  width="32%" alt="example3" src="https://github.com/user-attachments/assets/48e4ccc3-8403-4e9f-9bae-7a944e090e79" />
-    <img  width="32%" alt="example4" src="https://github.com/user-attachments/assets/bfaef104-5cc4-4258-a400-644aaea49f3c" />
+  <img src="docs/images/screenshot-sky-and-frame.png" alt="Paintwell with a sky, lens flare and gold picture frame" width="32%">
+  <img src="docs/images/screenshot-starfield.png" alt="Paintwell with a starfield and nebula" width="32%">
+  <img src="docs/images/screenshot-fractal.png" alt="Paintwell with a Julia fractal" width="32%">
 </p>
-
-## Features
-
-**Smart photo fixes**
-- Content-Aware Fill: select something you don't want and Paintwell fills the gap using the picture around it.
-- Remove tool: brush over small blemishes, spots, wires or unwanted objects to blend them away.
-- Red Eye, plus Clone Stamp, Dodge, Burn, Sponge, Blur, Sharpen and Smudge for touch-ups by hand.
-
-Results depend on the picture. The smart fixes work best on smaller areas with simple, even
-surroundings such as sky, grass, sand or walls. Large or detailed areas may need finishing
-with the Clone Stamp.
-
-**Selections**
-- Magic Wand that updates live as you move the Tolerance slider.
-- Magnetic Lasso that snaps to edges as you trace around an object.
-- Rectangle, ellipse and freehand lasso, plus add to and subtract from any selection.
-
-**Layers and text**
-- Layers with blend modes and opacity, saved in the open, layered OpenRaster (.ora) format,
-  which GIMP and Krita can also open.
-- Text on its own layer that you can re-edit at any time: horizontal, vertical, on an arc or
-  a wave, with rotation, outlines, drop shadows, and letter and line spacing.
-
-**Adjustments and 50+ effects**
-- Adjustments: Levels, Curves, Hue / Saturation, Brightness / Contrast, Auto-Level, Black and
-  White, Sepia, Posterise and Invert.
-- Align Object moves a shape, logo or cut-out to the centre, or to any edge or corner, of the picture or selection in one click. Feather Object softens its edges.
-- Artistic, Photo, Blurs, Distort, Noise and Stylise effects, all with live preview.
-- Frames and borders: picture frames (moulded, wood, gold, silver and more, with a mount),
-  drop shadows, rounded corners, and soft or rough edges.
-- Render: realistic clouds and skies, Lens Flare, Lighting Effects, Starfield, Rain and Snow,
-  Sunburst, Julia and Mandelbrot fractals, Plasma, and wood, marble and granite textures.
-
-**Made for getting work done**
-- Several images open at once in tabs; opening a picture from your file manager adds it to
-  the Paintwell that's already open.
-- Unlimited undo, with a History panel to jump back to any step.
-- Navigator, rulers and guides, a pixel grid, and light and dark themes.
-- Dockable Tools, Colours, History, Layers and Navigator panels.
-- Print with a preview and size options, and scan straight into Paintwell, including from
-  network printer-scanners without extra drivers.
-- Opens and saves PNG, JPEG, BMP, WebP, TIFF, GIF and more, plus layered OpenRaster.
 
 ## Install
 
@@ -89,6 +46,50 @@ FUSE (`sudo apt install libfuse2`). To add it to your menu, use Gear Lever or Ap
 pip install PySide6-Essentials numpy
 python3 -m paintwell
 ```
+
+## Features
+
+**Smart photo fixes**
+- Content-Aware Fill: select something you don't want and Paintwell fills the gap using the picture around it.
+- Remove tool: brush over small blemishes, spots, wires or unwanted objects to blend them away.
+- Red Eye, plus Clone Stamp, Dodge, Burn, Sponge, Blur, Sharpen and Smudge for touch-ups by hand.
+
+Results depend on the picture. The smart fixes work best on smaller areas with simple, even
+surroundings such as sky, grass, sand or walls. Large or detailed areas may need finishing
+with the Clone Stamp.
+
+**Selections**
+- Magic Wand that updates live as you move the Tolerance slider.
+- Magnetic Lasso that snaps to edges as you trace around an object.
+- Rectangle, ellipse and freehand lasso, plus add to and subtract from any selection.
+
+**Layers and text**
+- Layers with blend modes and opacity, saved in the open, layered OpenRaster (.ora) format,
+  which GIMP and Krita can also open.
+- Text on its own layer that you can re-edit at any time: horizontal, vertical, on an arc or
+  a wave, with rotation, outlines, drop shadows, and letter and line spacing.
+
+**Adjustments and 50+ effects**
+- Adjustments: Levels, Curves, Hue / Saturation, Brightness / Contrast, Auto-Level, Black and
+  White, Sepia, Posterise and Invert.
+- Artistic, Photo, Blurs, Distort, Noise and Stylise effects, with previews that update on
+  the picture as you drag the sliders.
+- Object: Align Object moves a shape, logo or cut-out to the centre, or to any edge or
+  corner, of the picture or selection in one click. Feather Object softens its edges.
+- Frames and borders: picture frames (moulded, wood, gold, silver and more, with a mount),
+  drop shadows, rounded corners, and soft or rough edges.
+- Render: realistic clouds and skies, Lens Flare, Lighting Effects, Starfield, Rain and Snow,
+  Sunburst, Julia and Mandelbrot fractals, Plasma, and wood, marble and granite textures.
+
+**Made for getting work done**
+- Several images open at once in tabs; opening a picture from your file manager adds it to
+  the Paintwell that's already open.
+- Unlimited undo, with a History panel to jump back to any step.
+- Navigator, rulers and guides, a pixel grid, and light and dark themes.
+- Dockable Tools, Colours, History, Layers and Navigator panels.
+- Print with a preview and size options, and scan straight into Paintwell, including from
+  network printer-scanners without extra drivers.
+- Opens and saves PNG, JPEG, BMP, WebP, TIFF, GIF and more, plus layered OpenRaster.
 
 
 ## Reporting problems
