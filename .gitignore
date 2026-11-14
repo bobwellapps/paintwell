@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# snap build output
+*.snap
+parts/
+stage/
+prime/
+.craft/
+
+# AppImage build output
+*.AppImage
+*.AppImage.part*
+
+# editors and desktop
+.idea/
+.vscode/
+*.swp
+.directory
+
+# snap packaging and the upload script: kept on this computer, not uploaded to GitHub
+snap/
+snap-tools/
+SNAP-RELEASE.md
+STORE-LISTING.txt
+publish-to-github.sh
