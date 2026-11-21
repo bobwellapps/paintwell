@@ -7,7 +7,7 @@ from PySide6.QtGui import (QAction, QActionGroup, QKeySequence, QIcon, QPainter,
                            QPalette, QPainterPath, QTransform, QPixmap, QFont, QGuiApplication)
 from PySide6.QtWidgets import (QMainWindow, QWidget, QDockWidget, QToolBar, QTabBar, QStackedWidget,
                                QLabel, QStatusBar, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
-                               QToolButton, QMenu, QMessageBox, QInputDialog, QApplication, QVBoxLayout,
+                               QToolButton, QMenu, QMessageBox, QApplication, QVBoxLayout,
                                QHBoxLayout, QFontComboBox, QSizePolicy, QStyleFactory, QSlider, QFrame,
                                QWidgetAction, QGridLayout, QColorDialog)
 
@@ -18,12 +18,13 @@ from .tools import TOOL_CLASSES, SHAPES, MoveTool
 from .panels import NavigatorPanel, ColorState, ColorsPanel, FitScrollArea, ToolsPanel, LayersPanel, HistoryPanel, thumb
 from .effects import Source, ADJUSTMENTS, EFFECTS, NO_DRAFT, render_draft
 from . import filedialogs
-from .dialogs import (SplitImageDialog, NewImageDialog, ResizeDialog, CanvasSizeDialog,
-                      LayerPropertiesDialog, EffectDialog, CurvesDialog, LevelsDialog)
+from .dialogs import (SplitImageDialog, NewImageDialog, ResizeDialog, SaveOptionsDialog, SettingsDialog,
+                      CanvasSizeDialog, LayerPropertiesDialog, EffectDialog, CurvesDialog, LevelsDialog,
+                      keep_photo_details, progressive_jpeg)
 
 APP_NAME = "Paintwell"
 LAYOUT_VERSION = 7  # bump to discard saved panel layouts after layout changes
-VERSION = "1.4"
+VERSION = "1.5"
 
 DEFAULT_OPTS = {
     "brush_width": 6, "hardness": 100, "blur_strength": 50, "sharpen_strength": 50,
@@ -484,6 +485,7 @@ class MainWindow(QMainWindow):
         A("swap_colors", "Swap Colours", "X")
         A("brush_smaller", "Decrease Brush Size", "[")
         A("brush_bigger", "Increase Brush Size", "]")
+        A("settings", "&Settings…", None, "settings")
         A("about", f"&About {APP_NAME}", None, "info")
         A("shortcuts", "&Keyboard Shortcuts", "F1", "keyboard")
         # menu entries that were added without an icon: give every one its own
@@ -526,7 +528,8 @@ class MainWindow(QMainWindow):
 
         m = mb.addMenu("&Edit")
         for n in ("undo", "redo", None, "cut", "copy", "copy_merged", "paste", "paste_layer", "paste_image", None,
-                  "select_all", "deselect", None, "erase_selection", "fill_selection", "content_aware_fill", "invert_selection"):
+                  "select_all", "deselect", None, "erase_selection", "fill_selection", "content_aware_fill", "invert_selection",
+                  None, "settings"):
             m.addSeparator() if n is None else m.addAction(self.act[n])
 
         m = mb.addMenu("&View")
@@ -1378,14 +1381,36 @@ class MainWindow(QMainWindow):
                 return False
         quality = -1
         if ext in ("jpg", "jpeg", "webp"):
-            q, ok = QInputDialog.getInt(self, "Save Configuration", "Quality:", int(self.settings.value("quality", 95)), 1, 100)
-            if not ok:
+            # start at the photo's own quality when re-saving a JPEG, else the last one used
+            own = getattr(doc, "jpeg_quality", None) if ext != "webp" else None
+            start = own or int(self.settings.value("quality", 95))
+            original = None
+            if doc.path and os.path.isfile(doc.path):
+                o_ext = os.path.splitext(doc.path)[1].lower().lstrip(".")
+                names = {"jpg": "JPEG", "jpeg": "JPEG", "webp": "WebP", "ora": "OpenRaster", "tif": "TIFF"}
+                try:
+                    original = (names.get(o_ext, o_ext.upper()), os.path.getsize(doc.path))
+                except OSError:
+                    pass
+            label = "WebP" if ext == "webp" else "JPEG"
+            meta = getattr(doc, "jpeg_meta", None) if ext != "webp" else None
+            if meta and not keep_photo_details(self.settings):
+                meta = fileio.jpegmeta.colour_only(meta)
+            extra = fileio.jpegmeta.size(meta)
+            unchanged = None
+            if own:
+                same = fileio.unchanged_copy(doc, path, own, keep_photo_details(self.settings))
+                unchanged = (own, len(same)) if same is not None else None
+            dlg = SaveOptionsDialog(self, doc.flattened(), "webp" if ext == "webp" else "jpg",
+                                    int(start), label, original, extra, progressive_jpeg(self.settings),
+                                    unchanged)
+            if not dlg.exec():
                 return False
-            quality = q
-            self.settings.setValue("quality", q)
+            quality = dlg.quality()
+            self.settings.setValue("quality", quality)
         self.busy(True)
         try:
-            fileio.save(doc, path, quality)
+            fileio.save(doc, path, quality, progressive_jpeg(self.settings), keep_photo_details(self.settings))
         except Exception as ex:
             self.busy(False)
             QMessageBox.warning(self, "Save", f"Could not save {os.path.basename(path)}:\n{ex}")
@@ -1761,6 +1786,9 @@ class MainWindow(QMainWindow):
         p.end()
         d.invalidate(r)
         d.commit(title, icon)
+
+    def do_settings(self):
+        SettingsDialog(self, self.settings).exec()
 
     def do_invert_selection(self):
         d = self.doc

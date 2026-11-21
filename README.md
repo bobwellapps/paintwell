@@ -9,9 +9,9 @@ adjustments and 50+ effects, all in a clean, familiar layout.
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/paintwell)
 
 <p align="center">
-<img width="32%" alt="example1" src="https://github.com/user-attachments/assets/1f0b0636-72b6-49d9-94b5-a2aa238cb788" />
-<img width="32%" alt="example3" src="https://github.com/user-attachments/assets/522a0701-b48a-4710-b65a-104fd0237244" />
-<img width="32%" alt="example4" src="https://github.com/user-attachments/assets/7125bf59-0b2f-4201-9e6a-737ef6e0c843" />
+  <img src="docs/images/screenshot-sky-and-frame.png" alt="Paintwell with a sky, lens flare and gold picture frame" width="32%">
+  <img src="docs/images/screenshot-starfield.png" alt="Paintwell with a starfield and nebula" width="32%">
+  <img src="docs/images/screenshot-fractal.png" alt="Paintwell with a Julia fractal" width="32%">
 </p>
 
 ## Install
@@ -90,6 +90,7 @@ with the Clone Stamp.
 - Print with a preview and size options, and scan straight into Paintwell, including from
   network printer-scanners without extra drivers.
 - Opens and saves PNG, JPEG, BMP, WebP, TIFF, GIF and more, plus layered OpenRaster.
+- When saving a JPEG or WebP, see the exact file size as you choose the quality.
 
 
 ## Reporting problems

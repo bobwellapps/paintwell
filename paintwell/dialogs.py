@@ -1,6 +1,6 @@
 """Dialogs: new image, resize, canvas size, layer properties, effect parameters, curves, levels."""
 from PySide6.QtCore import Qt, QTimer, QPointF, QRectF, Signal
-from PySide6.QtGui import QPainter, QColor, QPen, QPainterPath
+from PySide6.QtGui import QPainter, QColor, QPen, QPainterPath, QPalette
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QLabel,
                                QSpinBox, QDoubleSpinBox, QSlider, QCheckBox, QComboBox, QDialogButtonBox,
                                QPushButton, QRadioButton, QButtonGroup, QGroupBox, QLineEdit, QWidget,
@@ -482,6 +482,14 @@ class NewImageDialog(QDialog):
         self.info.setText(f"New size: {mb:.1f} MB")
 
 
+def human_size(n):
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            # one decimal place for KB and up, as Dolphin shows sizes
+            return f"{n:.0f} {unit}" if unit == "bytes" else f"{n:.1f} {unit}"
+        n /= 1024
+
+
 class ResizeDialog(QDialog):
     def __init__(self, parent, w, h, title="Resize Image"):
         super().__init__(parent)
@@ -537,7 +545,7 @@ class ResizeDialog(QDialog):
             self._set(v * self.w0 / self.h0, v)
         self._info()
 
-    def _info(self):
+    def _info(self, *_):
         self.info.setText(f"Original: {self.w0} × {self.h0}    New: {self.w.value()} × {self.h.value()}")
 
     def result_size(self):
@@ -545,6 +553,140 @@ class ResizeDialog(QDialog):
 
     def smooth(self):
         return self.resample.currentIndex() == 0
+
+
+class SaveOptionsDialog(QDialog):
+    """Asked before saving a JPEG or WebP, like Paint.NET's save dialog: the quality, and the
+    exact size the file will have at that quality, worked out by saving to memory in the
+    background as the slider moves. The original file's size is shown beside it to compare."""
+    _sized = Signal(int, int, bool)          # job, bytes, exact
+
+    def __init__(self, parent, img, ext, quality, label, original=None, extra=0, progressive=False,
+                 unchanged=None):
+        """img: the flattened picture. original: (format name, bytes) of the file it came
+        from, or None for a picture that hasn't been saved. extra: bytes of the photo's details
+        (camera, date...) that Save adds to the picture. unchanged: (quality, bytes) when the
+        picture hasn't been changed, so Save keeps its own file as it is at that quality."""
+        super().__init__(parent)
+        self.setWindowTitle(f"Save as {label}")
+        self.img, self.ext, self.extra, self.progressive = img, ext, extra, progressive
+        self.unchanged = unchanged
+        lay = QVBoxLayout(self)
+        qrow = QHBoxLayout()
+        qrow.addWidget(QLabel("Quality:"))
+        self.quality_box = SliderSpin(1, 100, quality)
+        qrow.addWidget(self.quality_box, 1)
+        lay.addLayout(qrow)
+        form = QFormLayout()
+        self.size_label = QLabel()
+        # wide enough for any value, so the window doesn't change size while it's worked out
+        fm = self.size_label.fontMetrics()
+        self.size_label.setMinimumWidth(max(fm.horizontalAdvance(t) for t in
+                                      ("working it out…", "about 888.8 MB", "couldn't be worked out")))
+        form.addRow("File size:", self.size_label)
+        if original is not None:
+            form.addRow(f"Original file ({original[0]}):", QLabel(human_size(original[1])))
+        lay.addLayout(form)
+        # room for a short note, always kept so the window doesn't jump when one appears
+        self.note = QLabel()
+        self.note.setWordWrap(True)
+        f = self.note.font(); f.setPointSizeF(f.pointSizeF() * 0.9); self.note.setFont(f)
+        self.note.setForegroundRole(QPalette.PlaceholderText)
+        self.note.setFixedHeight(self.note.fontMetrics().lineSpacing() * 2 + 4)
+        if unchanged is not None:
+            lay.addWidget(self.note)
+        lay.addWidget(buttons(self))
+        from concurrent.futures import ThreadPoolExecutor
+        self._pool = ThreadPoolExecutor(1, thread_name_prefix="file-size")
+        self._job = 0
+        self._timer = QTimer(self); self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._start)
+        self._sized.connect(self._show)
+        self.quality_box.valueChanged.connect(self._changed)
+        self._changed()
+
+    def quality(self):
+        return int(self.quality_box.value())
+
+    def _changed(self, *_):
+        self._job += 1                       # any answer still on its way is out of date
+        if self.unchanged is not None and self.quality() == self.unchanged[0]:
+            # nothing to work out: the picture's own file is kept as it is
+            self._timer.stop()
+            self.size_label.setText(human_size(self.unchanged[1]))
+            self.note.setText("The picture hasn't been changed, so it's saved as it is, "
+                              "with no quality lost.")
+            return
+        self.note.setText("")
+        self.size_label.setText("working it out…")
+        self._timer.start(150)
+
+    def _start(self):
+        from .fileio import estimate_size
+        job, q, img = self._job, self.quality(), self.img
+
+        def work():
+            try:
+                n, exact = estimate_size([img], self.ext, q, img.width(), img.height(),
+                                         progressive=self.progressive)
+                self._sized.emit(job, int(n) + self.extra, exact)
+            except Exception:
+                self._sized.emit(job, -1, False)
+        self._pool.submit(work)
+
+    def _show(self, job, n, exact):
+        if job != self._job:
+            return
+        if n < 0:
+            self.size_label.setText("couldn't be worked out")
+        else:
+            self.size_label.setText(human_size(n) if exact else f"about {human_size(n)}")
+
+    def done(self, r):
+        self._job += 1
+        self._pool.shutdown(wait=False, cancel_futures=True)
+        super().done(r)
+
+
+class SettingsDialog(QDialog):
+    """Edit > Settings: options most people never need to change."""
+    def __init__(self, parent, settings):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.settings = settings
+        lay = QVBoxLayout(self)
+        box = QGroupBox("Saving")
+        b = QVBoxLayout(box)
+        self.keep_details = QCheckBox("Keep photo details when saving (camera, date, location)")
+        self.keep_details.setToolTip("Untick to remove them, for example before sharing a photo online,\n"
+                                     "so the place it was taken isn't passed on.")
+        self.progressive = QCheckBox("Save JPEGs as progressive (load gradually on web pages)")
+        self.progressive.setToolTip("Progressive JPEGs show blurry first and sharpen as they load. A few\n"
+                                    "old devices, such as some photo frames, can't open them.")
+        self.keep_details.setChecked(keep_photo_details(settings))
+        self.progressive.setChecked(progressive_jpeg(settings))
+        b.addWidget(self.keep_details)
+        b.addWidget(self.progressive)
+        lay.addWidget(box)
+        lay.addWidget(buttons(self))
+
+    def accept(self):
+        self.settings.setValue("keep_photo_details", self.keep_details.isChecked())
+        self.settings.setValue("jpeg_progressive", self.progressive.isChecked())
+        super().accept()
+
+
+def _flag(settings, key, default):
+    v = settings.value(key, default)
+    return v if isinstance(v, bool) else v in ("true", "1", 1)
+
+
+def keep_photo_details(settings):
+    return _flag(settings, "keep_photo_details", True)
+
+
+def progressive_jpeg(settings):
+    return _flag(settings, "jpeg_progressive", False)
 
 
 class CanvasSizeDialog(ResizeDialog):
