@@ -20,11 +20,11 @@ from .effects import Source, ADJUSTMENTS, EFFECTS, NO_DRAFT, render_draft
 from . import filedialogs
 from .dialogs import (SplitImageDialog, NewImageDialog, ResizeDialog, SaveOptionsDialog, SettingsDialog,
                       CanvasSizeDialog, LayerPropertiesDialog, EffectDialog, CurvesDialog, LevelsDialog,
-                      keep_photo_details, progressive_jpeg)
+                      keep_photo_details, progressive_jpeg, exec_live)
 
 APP_NAME = "Paintwell"
 LAYOUT_VERSION = 7  # bump to discard saved panel layouts after layout changes
-VERSION = "1.5"
+VERSION = "1.6"
 
 DEFAULT_OPTS = {
     "brush_width": 6, "hardness": 100, "blur_strength": 50, "sharpen_strength": 50,
@@ -2181,7 +2181,7 @@ class MainWindow(QMainWindow):
             L.name, L.visible, L.blend, L.opacity = v["name"], v["visible"], v["blend"], v["opacity"]
             d.invalidate()
         dlg = LayerPropertiesDialog(self, L, change)
-        if dlg.exec():
+        if exec_live(dlg, self):
             change(dlg.values())
             d.layersChanged.emit()
             d.commit("Layer Properties", "layer_props")
@@ -2220,7 +2220,7 @@ class MainWindow(QMainWindow):
         params = [("angle", "Angle", "float", 0.0, -180, 180), ("pan_x", "Pan X", "int", 0, -d.w, d.w),
                   ("pan_y", "Pan Y", "int", 0, -d.h, d.h), ("zoom", "Zoom", "float", 1.0, 0.05, 8)]
         dlg = EffectDialog(self, "Layer Rotate / Zoom", params, preview)
-        if dlg.exec():
+        if exec_live(dlg, self):
             preview(dlg.values())
             d.commit("Rotate / Zoom Layer", "rot_cw")
         else:
@@ -2342,7 +2342,7 @@ class MainWindow(QMainWindow):
             finally:
                 self.busy(False)
             return
-        if dlg.exec():
+        if exec_live(dlg, self):
             self.busy(True)
             try:
                 done(dlg.values())
@@ -2416,7 +2416,7 @@ class MainWindow(QMainWindow):
             preview(params); done(params)
             return
         dlg = EffectDialog(self, eff.name, eff.params, preview, self.last_params.get(eff.name), icons.icon(icon))
-        if dlg.exec():
+        if exec_live(dlg, self):
             done(dlg.values())
         else:
             d.revert()

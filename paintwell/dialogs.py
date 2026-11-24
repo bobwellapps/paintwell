@@ -1,5 +1,5 @@
 """Dialogs: new image, resize, canvas size, layer properties, effect parameters, curves, levels."""
-from PySide6.QtCore import Qt, QTimer, QPointF, QRectF, Signal
+from PySide6.QtCore import Qt, QTimer, QPointF, QRectF, Signal, QObject, QEvent, QEventLoop
 from PySide6.QtGui import QPainter, QColor, QPen, QPainterPath, QPalette
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QLabel,
                                QSpinBox, QDoubleSpinBox, QSlider, QCheckBox, QComboBox, QDialogButtonBox,
@@ -18,6 +18,65 @@ def buttons(dlg, reset=None):
         b.clicked.connect(reset)
     return bb
 
+
+# --- Dialogs that preview on the picture ---
+# KDE dims the window behind a modal dialog, hiding the preview. These dialogs open non-modal
+# and block the main window themselves; scrolling and zooming still work.
+
+_BLOCKED = {QEvent.MouseButtonPress, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick,
+            QEvent.MouseMove, QEvent.KeyPress, QEvent.KeyRelease, QEvent.Shortcut,
+            QEvent.ShortcutOverride, QEvent.ContextMenu, QEvent.DragEnter, QEvent.DragMove,
+            QEvent.Drop, QEvent.TabletPress, QEvent.TabletMove, QEvent.TabletRelease,
+            QEvent.TouchBegin, QEvent.TouchUpdate, QEvent.TouchEnd}
+
+
+class _MainWindowBlocker(QObject):
+    def __init__(self, main, dlg):
+        super().__init__(dlg)
+        self.main, self.dlg = main, dlg
+
+    def _in_dialog(self, obj):
+        w = obj if isinstance(obj, QWidget) else getattr(obj, "parentWidget", lambda: None)()
+        while w is not None:
+            if w is self.dlg:
+                return True
+            w = w.parentWidget()
+        return False
+
+    def eventFilter(self, obj, ev):
+        t = ev.type()
+        if t == QEvent.Close and obj is self.main:
+            ev.ignore()
+            return True
+        if t not in _BLOCKED or self._in_dialog(obj):
+            return False
+        if t == QEvent.Shortcut:
+            return True
+        if isinstance(obj, QWidget) and obj.window() is self.main:
+            if t == QEvent.MouseButtonPress:
+                self.dlg.raise_()
+                self.dlg.activateWindow()
+            return True
+        return False
+
+
+def exec_live(dlg, main):
+    """dlg.exec() without the modal flag (see above)."""
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
+    dlg.setWindowModality(Qt.NonModal)
+    blocker = _MainWindowBlocker(main, dlg)
+    app.installEventFilter(blocker)
+    loop = QEventLoop()
+    dlg.finished.connect(loop.quit)
+    try:
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+        loop.exec()
+    finally:
+        app.removeEventFilter(blocker)
+    return dlg.result()
 
 def live_schedule(dlg):
     """Update the preview straight away when a setting changes, then again every so often
