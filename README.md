@@ -9,9 +9,9 @@ adjustments and 50+ effects, all in a clean, familiar layout.
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/paintwell)
 
 <p align="center">
-  <img src="docs/images/screenshot-sky-and-frame.png" alt="Paintwell with a sky, lens flare and gold picture frame" width="32%">
-  <img src="docs/images/screenshot-starfield.png" alt="Paintwell with a starfield and nebula" width="32%">
-  <img src="docs/images/screenshot-fractal.png" alt="Paintwell with a Julia fractal" width="32%">
+<img width="32%" alt="example1" src="https://github.com/user-attachments/assets/57a1998d-7f79-4f4b-a3d6-c38916f76239" />
+<img width="32%" alt="example3" src="https://github.com/user-attachments/assets/bb662f49-cffe-4a7e-82f2-f03312fc0e65" />
+<img width="32%" alt="example4" src="https://github.com/user-attachments/assets/cc3a7dae-e10c-44ec-8d47-d37f4fbd81c1" />
 </p>
 
 ## Install
